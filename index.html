@@ -2132,11 +2132,21 @@ function initPageBuilder() {
       ['blog','Blog'],['contact','Contact'],['about','About']
     ];
     var d = cmsGet();
-    var custom = (d.pages||[]);
-    function flatten(arr){var r=[];arr.forEach(function(p){r.push(p);if(p.children)r=r.concat(flatten(p.children));});return r;}
-    flatten(custom).forEach(function(p){ pages.push([p.slug||p.title, p.title]); });
-    sel.innerHTML = '<option value="">— select page —</option>' +
+    var flat = function(arr){var r=[];arr.forEach(function(p){r.push(p);if(p.children)r=r.concat(flat(p.children));});return r;};
+    flat(d.pages||[]).forEach(function(p){ pages.push([p.slug||String(p.id),p.title]); });
+    sel.innerHTML = '<option value="">— select a page —</option>' +
       pages.map(function(p){return '<option value="'+p[0]+'">'+p[1]+'</option>';}).join('');
+  }
+  var wlib = document.getElementById('pb-widget-lib');
+  if(wlib) {
+    var widgets = cmsGet().widgets||[];
+    if(!widgets.length) {
+      wlib.innerHTML = '<p style="font-size:.82rem;color:#aabbc8;">No widgets yet. Go to Widgets section to add some first.</p>';
+    } else {
+      wlib.innerHTML = widgets.map(function(w){
+        return '<div draggable="true" ondragstart="pbDragStart(event,\'' + w.name + '\',\'' + w.icon + '\',\'' + w.id + '\')" style="border:1px solid #e2e8f0;border-radius:8px;padding:.7rem;background:#fff;cursor:grab;display:flex;align-items:center;gap:.5rem;"><span style="font-size:1.3rem;">' + w.icon + '</span><span style="font-size:.8rem;font-weight:600;">' + w.name + '</span></div>';
+      }).join('');
+    }
   }
   if(typeof pbCheckEmpty==='function') pbCheckEmpty();
 }
@@ -2204,245 +2214,396 @@ function tick(){
 }
 
 
+
+/* ═══════════════════════════════════════════════════════════
+   ADMIN v3 — Section HTML Renderers
+   Every ID here matches an existing CMS JS function.
+   ═══════════════════════════════════════════════════════════ */
+
+var _ADM = {
+  /* ── style helpers ── */
+  card: function(title, body, btns) {
+    btns = btns || '';
+    return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:1rem;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04);">' +
+      (title ? '<div style="padding:.75rem 1.1rem;border-bottom:1px solid #f0f4f8;display:flex;align-items:center;gap:.6rem;">' +
+        '<span style="font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;color:#344054;flex:1;">' + title + '</span>' +
+        btns + '</div>' : '') +
+      '<div style="padding:1.1rem;">' + body + '</div></div>';
+  },
+  fg: function(lbl, id, type, ph) {
+    type = type || 'text'; ph = ph || '';
+    var s = 'width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:6px;padding:.5rem .7rem;font-family:\'DM Sans\',sans-serif;font-size:.84rem;color:#1a2535;outline:none;transition:border .15s;';
+    var L = '<label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">' + lbl + '</label>';
+    if (type === 'textarea') return '<div style="margin-bottom:.85rem;">' + L + '<textarea id="' + id + '" placeholder="' + ph + '" style="' + s + 'min-height:72px;resize:vertical;"></textarea></div>';
+    return '<div style="margin-bottom:.85rem;">' + L + '<input type="' + type + '" id="' + id + '" placeholder="' + ph + '" style="' + s + '"/></div>';
+  },
+  row: function() { var cols = Array.from(arguments); return '<div style="display:grid;grid-template-columns:' + cols.map(function(){return'1fr';}).join(' ') + ';gap:.8rem;">' + cols.join('') + '</div>'; },
+  btn: function(lbl, fn, gold) {
+    var bg = gold ? 'background:#e8a020;color:#0a1628;' : 'background:#0a1628;color:#fff;';
+    return '<button onclick="' + fn + '" style="' + bg + 'border:none;border-radius:6px;padding:.45rem 1rem;font-family:\'DM Sans\',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;margin-right:.4rem;">' + lbl + '</button>';
+  },
+  savebtn: function(fn) { return _ADM.btn('💾 Save Changes', fn, true); },
+  tile: function(icon, label, sec, count) {
+    var badge = count !== undefined ? '<span style="background:#f0f4f8;color:#6677aa;font-size:.68rem;padding:2px 7px;border-radius:10px;margin-left:.4rem;">' + count + '</span>' : '';
+    return '<div onclick="adminGo(\'' + sec + '\')" style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:1.2rem 1rem;cursor:pointer;text-align:center;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.04);" onmouseover="this.style.borderColor=\'#e8a020\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.1)\'" onmouseout="this.style.borderColor=\'#e2e8f0\';this.style.transform=\'\';this.style.boxShadow=\'0 1px 3px rgba(0,0,0,.04)\'">' +
+      '<div style="font-size:1.8rem;margin-bottom:.5rem;">' + icon + '</div>' +
+      '<div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:.88rem;letter-spacing:.06em;text-transform:uppercase;color:#0a1628;">' + label + badge + '</div>' +
+    '</div>';
+  }
+};
+
 function adminSectionHTML(sec) {
-  var W = function(title, body, actions) {
-    actions = actions || '';
-    return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:1rem;overflow:hidden;">' +
-      '<div style="padding:.8rem 1rem;border-bottom:1px solid #f0f4f8;display:flex;align-items:center;gap:.6rem;">' +
-      '<div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:#344054;flex:1;">'+title+'</div>' +
-      actions + '</div><div style="padding:1rem;">'+body+'</div></div>';
-  };
-  var fg = function(label, id, type, ph, val) {
-    type=type||'text'; ph=ph||''; val=val||'';
-    if(type==='textarea') return '<div style="margin-bottom:.8rem;"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6677aa;display:block;margin-bottom:.3rem;">'+label+'</label><textarea id="'+id+'" placeholder="'+ph+'" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem .7rem;font-family:\'DM Sans\',sans-serif;font-size:.85rem;min-height:70px;resize:vertical;">'+val+'</textarea></div>';
-    return '<div style="margin-bottom:.8rem;"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6677aa;display:block;margin-bottom:.3rem;">'+label+'</label><input type="'+type+'" id="'+id+'" placeholder="'+ph+'" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem .7rem;font-family:\'DM Sans\',sans-serif;font-size:.85rem;" value="'+val+'"/></div>';
-  };
-  var btn = function(label, onclick, style) {
-    style=style||'background:#0a1628;color:#fff;';
-    return '<button onclick="'+onclick+'" style="'+style+'border:none;border-radius:5px;padding:.4rem .9rem;font-family:\'DM Sans\',sans-serif;font-size:.8rem;cursor:pointer;margin-right:.4rem;">'+label+'</button>';
-  };
-  var g2 = function(a,b){return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">'+a+b+'</div>';};
-  var g3 = function(a,b,cc){return '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">'+a+b+cc+'</div>';};
+  var W = _ADM.card, fg = _ADM.fg, row = _ADM.row, btn = _ADM.btn, sv = _ADM.savebtn, tile = _ADM.tile;
 
-  // ── DASHBOARD ──────────────────────────────────────
-  if(sec==='dashboard') {
+  /* ══════════════════════════════════════════════════════
+     DASHBOARD
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'dashboard') {
     var d = cmsGet();
-    var flat=function(arr){var r=[];(arr||[]).forEach(function(p){r.push(p);if(p.children)r=r.concat(flat(p.children));});return r;};
-    var pc=flat(d.pages||[]).length+13, bc=(d.blog_posts||[]).filter(function(p){return p.status==='published';}).length,
-        ic=(d.images||[]).length, vc=(d.videos||[]).length;
-    var stat=function(n,l,sec,col){return '<div onclick="adminGo(\''+sec+'\')" style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1.1rem 1rem;cursor:pointer;border-left:3px solid '+col+';" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'#fff\'">'+'<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:2rem;font-weight:800;color:'+col+';">'+n+'</div>'+'<div style="font-size:.72rem;color:#6677aa;text-transform:uppercase;letter-spacing:.08em;">'+l+'</div></div>';};
+    var flat = function(a){var r=[];(a||[]).forEach(function(p){r.push(p);if(p.children)r=r.concat(flat(p.children));});return r;};
+    var pc = flat(d.pages||[]).length + 13;
+    var bc = (d.blog_posts||[]).filter(function(p){return p.status==='published';}).length;
+    var ic = (d.images||[]).length;
+    var vc = (d.videos||[]).length;
+    var mc = (d.menus||[]).length;
+    var wc = (d.widgets||[]).length;
+
+    return '<div style="max-width:960px;">' +
+      // Stats row
+      '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.6rem;margin-bottom:1.4rem;">' +
+        [['dc-pages',pc,'Pages','📄','pages','#0a1628'],
+         ['dc-blog',bc,'Published Posts','📝','blog','#27ae60'],
+         ['dc-images',ic,'Images','🖼','images','#e8a020'],
+         ['dc-videos',vc,'Videos','▶','videos','#8855cc'],
+         ['dc-menus',mc,'Menus','☰','menus','#0077cc'],
+         ['dc-widgets',wc,'Widgets','⊞','widgets','#cc5500']
+        ].map(function(s){
+          return '<div onclick="adminGo(\''+s[4]+'\')" style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:.9rem .8rem;cursor:pointer;border-left:3px solid '+s[5]+';transition:box-shadow .15s;" onmouseover="this.style.boxShadow=\'0 4px 12px rgba(0,0,0,.1)\'" onmouseout="this.style.boxShadow=\'\'">' +
+            '<div style="font-size:1.3rem;margin-bottom:.2rem;">'+s[2+1]+'</div>' +
+            '<div id="'+s[0]+'" style="font-family:\'Barlow Condensed\',sans-serif;font-size:1.8rem;font-weight:800;color:'+s[5]+';">'+s[1]+'</div>' +
+            '<div style="font-size:.68rem;color:#6677aa;text-transform:uppercase;letter-spacing:.07em;">'+s[2]+'</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+      // Navigation tiles
+      W('Edit Homepage', '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;">' +
+        tile('🏠','Hero Banner','hero') + tile('⬡','Products','products-sec') +
+        tile('ℹ','About','about-sec') + tile('🎯','CTA Banner','cta-sec') + tile('⬇','Footer','footer-sec') +
+      '</div>') +
+      W('Manage Content', '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;">' +
+        tile('📄','Pages','pages',pc) + tile('📝','Blog','blog',bc) +
+        tile('☰','Menus','menus',mc) + tile('⬡','Products','prod-hub') +
+      '</div>') +
+      W('Media & Build', '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;">' +
+        tile('🖼','Images','images',ic) + tile('▶','Videos','videos',vc) +
+        tile('🔧','Page Builder','page-builder') + tile('⊞','Widgets','widgets',wc) +
+        tile('🔗','Links','links') +
+      '</div>') +
+    '</div>';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     HERO BANNER
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'hero') {
+    return '<div style="max-width:780px;">' +
+      W('Hero Text', row(
+        fg('Eyebrow Text','h_eyebrow','text','e.g. Best Available Technologies') + fg('Headline','h_h1','text','e.g. Floating') + fg('Headline Emphasis (gold)','h_h1em','text','e.g. Roof Tanks'),
+        fg('Subheading','h_sub','textarea','Tagline shown under headline') + row(fg('Button 1 Label','h_b1l'),fg('Button 1 URL','h_b1u')) + row(fg('Button 2 Label','h_b2l'),fg('Button 2 URL','h_b2u'))
+      ), sv('saveHero()')) +
+      W('Statistics', row(
+        row(fg('Stat 1 Number','h_s1n'),fg('Stat 1 Label','h_s1l')),
+        row(fg('Stat 2 Number','h_s2n'),fg('Stat 2 Label','h_s2l'))
+      ) + row(
+        row(fg('Stat 3 Number','h_s3n'),fg('Stat 3 Label','h_s3l')),
+        row(fg('Stat 4 Number','h_s4n'),fg('Stat 4 Label','h_s4l'))
+      ), sv('saveHero()')) +
+      W('Hero Video', row(
+        fg('Video URL (MP4/YouTube/Vimeo)','h_vid_url') + fg('Video Type','h_vid_type'),
+        '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Auto-play</label><select id="h_vid_auto" style="width:100%;border:1px solid #dde4ed;border-radius:6px;padding:.5rem .7rem;font-size:.84rem;"><option value="1">On</option><option value="0">Off</option></select></div>' +
+        '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Loop</label><select id="h_vid_loop" style="width:100%;border:1px solid #dde4ed;border-radius:6px;padding:.5rem .7rem;font-size:.84rem;"><option value="1">On</option><option value="0">Off</option></select></div>'
+      ) + '<div id="hero-vid-status" style="font-size:.75rem;color:#6677aa;margin-bottom:.8rem;"></div><div id="hero-vid-preview" style="max-width:360px;aspect-ratio:16/9;background:#0a1628;border-radius:6px;overflow:hidden;"></div>',
+        btn('▶ Preview','prevHeroVid(gf(\'h_vid_url\'))') + sv('saveHero()')) +
+    '</div>';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     PRODUCTS SECTION
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'products-sec') {
+    return '<div style="max-width:780px;">' +
+      W('Section Header', row(fg('Section Label','ps_lbl'),fg('Section Title','ps_ttl')) + fg('Subtitle','ps_sub','textarea'), sv('saveProdSec()')) +
+      W('Product Cards', '<div id="prod-cards-editor"></div>', sv('saveProdSec()')) +
+    '</div>';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     ABOUT SECTION
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'about-sec') {
+    return '<div style="max-width:780px;">' +
+      W('About Section', row(fg('Section Label','ab_lbl'),fg('Group/Company Name','ab_ttl')) + fg('Paragraph 1','ab_p1','textarea') + fg('Paragraph 2','ab_p2','textarea'), sv('saveAbout()')) +
+      W('Statistics', row(row(fg('Stat 1 #','ab_s1n'),fg('Stat 1 Label','ab_s1l')), row(fg('Stat 2 #','ab_s2n'),fg('Stat 2 Label','ab_s2l'))) + row(row(fg('Stat 3 #','ab_s3n'),fg('Stat 3 Label','ab_s3l')), row(fg('Stat 4 #','ab_s4n'),fg('Stat 4 Label','ab_s4l'))), sv('saveAbout()')) +
+    '</div>';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     CTA SECTION
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'cta-sec') {
+    return '<div style="max-width:780px;">' +
+      W('CTA Content', row(fg('Tag / Label','ct_tag'),fg('Title','ct_ttl')) + fg('Subtitle','ct_sub','textarea') + row(fg('Button Label','ct_bl'),fg('Button URL','ct_bu')) + row(fg('Feature 1','ct_f1'),fg('Feature 2','ct_f2')) + row(fg('Feature 3','ct_f3'),fg('Feature 4','ct_f4')), sv('saveCTA()')) +
+      W('Live Preview', '<div style="background:linear-gradient(135deg,#0a1628,#1c2e4a);border-radius:8px;padding:2rem;color:#fff;text-align:center;">' +
+        '<div id="cpv-tag" style="font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#e8a020;margin-bottom:.5rem;"></div>' +
+        '<div id="cpv-ttl" style="font-family:\'Barlow Condensed\',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:.5rem;"></div>' +
+        '<div id="cpv-sub" style="font-size:.85rem;color:#8899bb;margin-bottom:1rem;"></div>' +
+        '<div id="cpv-btn" style="display:inline-block;background:#e8a020;color:#0a1628;border-radius:5px;padding:.4rem 1.2rem;font-weight:700;font-size:.82rem;"></div>' +
+      '</div>') +
+    '</div>';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     FOOTER
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'footer-sec') {
+    return '<div style="max-width:780px;">' +
+      W('Footer Content', fg('Tagline','ft_tag','textarea') + fg('Copyright Line','ft_copy'), sv('saveFooter()')) +
+      W('Social Links', row(row(fg('Facebook URL','ft_fb'),fg('Twitter/X URL','ft_tw')), row(fg('YouTube URL','ft_yt'),fg('Instagram URL','ft_ig'))), sv('saveFooter()')) +
+    '</div>';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     PRODUCT HUB
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'prod-hub') {
+    var prods = [
+      ['mss','Mechanical Shoe Seals','🔩'],['lmp','Liquid Mounted Primary','💧'],
+      ['vmp','Vapour Mounted Primary','☁'],['sec','Secondary Seals','🛡'],
+      ['wip','Wiper Seals','🔄'],['rim','Rim Seals','⬡'],
+      ['fit','Seal Fittings','⚙'],['lp','Lightning Protection','⚡']
+    ];
     return '<div style="max-width:900px;">' +
-      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin-bottom:1.2rem;">' +
-      stat(pc,'Pages','pages','#0a1628') + stat(bc,'Published Posts','blog','#27ae60') +
-      stat(ic,'Images','images','#e8a020') + stat(vc,'Videos','videos','#8855cc') + '</div>' +
-      W('Quick Links', '<div id="dash-sitepages" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.5rem;"></div>') +
-      W('Getting Started', '<div style="font-size:.85rem;line-height:1.7;color:#344054;">' +
-        '<p style="margin:.3rem 0;">&#10003; Use <strong>Pages</strong> to create and manage site pages</p>' +
-        '<p style="margin:.3rem 0;">&#10003; Use <strong>Product Pages</strong> to edit individual product content and images</p>' +
-        '<p style="margin:.3rem 0;">&#10003; Use <strong>Image Library</strong> to upload and manage all site images</p>' +
-        '<p style="margin:.3rem 0;">&#10003; Use <strong>Page Builder</strong> to assign widget layouts to any page</p>' +
-        '<p style="margin:.3rem 0;">&#10003; Use <strong>Blog</strong> to write and publish articles</p>' +
-      '</div>') + '</div>';
+      '<p style="font-size:.84rem;color:#6677aa;margin-bottom:1.2rem;">Select a product to edit its content, images, video, and specifications.</p>' +
+      W('Product Pages', '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;">' +
+        prods.map(function(p) {
+          return '<div onclick="adminGo(\'prod-'+p[0]+'\')" style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:1.2rem 1rem;cursor:pointer;transition:all .15s;text-align:center;" onmouseover="this.style.borderColor=\'#e8a020\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(232,160,32,.15)\'" onmouseout="this.style.borderColor=\'#e2e8f0\';this.style.transform=\'\';this.style.boxShadow=\'\'">' +
+            '<div style="font-size:2rem;margin-bottom:.5rem;">'+p[2]+'</div>' +
+            '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#0a1628;line-height:1.3;">'+p[1]+'</div>' +
+            '<div style="font-size:.68rem;color:#e8a020;margin-top:.3rem;">Edit →</div>' +
+          '</div>';
+        }).join('') +
+      '</div>') +
+    '</div>';
   }
 
-  // ── HERO ──────────────────────────────────────────
-  if(sec==='hero') {
-    return '<div style="max-width:700px;">' +
-      W('Hero Banner Text', g2(fg('Eyebrow Text','h_eyebrow')+fg('Headline','h_h1'), fg('Headline Emphasis (Gold)','h_h1em')+fg('Subheading','h_sub','textarea')) +
-        fg('Button 1 Label','h_b1l') + fg('Button 1 URL','h_b1u') + fg('Button 2 Label','h_b2l') + fg('Button 2 URL','h_b2u'),
-        btn('&#128190; Save Hero','saveHero()','background:#e8a020;color:#0a1628;')) +
-      W('Statistics', g2(g2(fg('Stat 1 Number','h_s1n'),fg('Stat 1 Label','h_s1l')), g2(fg('Stat 2 Number','h_s2n'),fg('Stat 2 Label','h_s2l'))) + g2(g2(fg('Stat 3 Number','h_s3n'),fg('Stat 3 Label','h_s3l')), g2(fg('Stat 4 Number','h_s4n'),fg('Stat 4 Label','h_s4l'))),
-        btn('Save','saveHero()','background:#e8a020;color:#0a1628;')) + '</div>';
-  }
-
-  // ── PRODUCTS SECTION ──────────────────────────────
-  if(sec==='products-sec') {
-    return '<div style="max-width:700px;">' +
-      W('Section Header', fg('Label','ps_lbl')+fg('Title','ps_ttl')+fg('Subtitle','ps_sub','textarea'), btn('Save','saveProdSec()','background:#e8a020;color:#0a1628;')) +
-      W('Product Cards', '<div id="prod-cards-editor"></div>', btn('Save Cards','saveProdSec()','background:#e8a020;color:#0a1628;')) + '</div>';
-  }
-
-  // ── ABOUT ──────────────────────────────────────────
-  if(sec==='about-sec') {
-    return '<div style="max-width:700px;">' +
-      W('About Section', fg('Label','ab_label')+fg('Group Name','ab_ttl')+fg('Paragraph 1','ab_p1','textarea')+fg('Paragraph 2','ab_p2','textarea')+
-        g2(g2(fg('Stat 1 #','ab_s1n'),fg('Stat 1 Label','ab_s1l')),g2(fg('Stat 2 #','ab_s2n'),fg('Stat 2 Label','ab_s2l')))+
-        g2(g2(fg('Stat 3 #','ab_s3n'),fg('Stat 3 Label','ab_s3l')),g2(fg('Stat 4 #','ab_s4n'),fg('Stat 4 Label','ab_s4l'))),
-        btn('&#128190; Save','saveAbout()','background:#e8a020;color:#0a1628;')) + '</div>';
-  }
-
-  // ── CTA ───────────────────────────────────────────
-  if(sec==='cta-sec') {
-    return '<div style="max-width:600px;">' +
-      W('CTA Banner', fg('Tag','ct_tag')+fg('Title','ct_ttl')+fg('Subtitle','ct_sub','textarea')+fg('Button Label','ct_bl')+fg('Button URL','ct_bu')+
-        g2(fg('Feature 1','ct_f1'),fg('Feature 2','ct_f2'))+g2(fg('Feature 3','ct_f3'),fg('Feature 4','ct_f4')),
-        btn('&#128190; Save','saveCTA()','background:#e8a020;color:#0a1628;')) + '</div>';
-  }
-
-  // ── FOOTER ────────────────────────────────────────
-  if(sec==='footer-sec') {
-    return '<div style="max-width:600px;">' +
-      W('Footer Content', fg('Tagline','ft_tag','textarea')+fg('Copyright','ft_copy'),
-        btn('&#128190; Save','saveFooter()','background:#e8a020;color:#0a1628;')) +
-      W('Social URLs', g2(fg('Facebook','ft_fb'),fg('Twitter/X','ft_tw'))+g2(fg('YouTube','ft_yt'),fg('Instagram','ft_ig')),
-        btn('Save','saveFooter()','background:#e8a020;color:#0a1628;')) + '</div>';
-  }
-
-  // ── PRODUCT HUB ───────────────────────────────────
-  if(sec==='prod-hub') {
-    var prods=[['mss','Mechanical Shoe Seals','🔩'],['lmp','Liquid Mounted Primary','💧'],
-               ['vmp','Vapour Mounted Primary','☁'],['sec','Secondary Seals','🛡'],
-               ['wip','Wiper Seals','🔄'],['rim','Rim Seals','⬡'],
-               ['fit','Seal Fittings','⚙'],['lp','Lightning Protection','⚡']];
-    return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.8rem;max-width:900px;">' +
-      prods.map(function(p){
-        return '<div onclick="adminGo(\'prod-'+p[0]+'\')" style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1.1rem;cursor:pointer;transition:border .15s;" onmouseover="this.style.borderColor=\'#e8a020\'" onmouseout="this.style.borderColor=\'#e2e8f0\'">' +
-          '<div style="font-size:1.8rem;margin-bottom:.4rem;">'+p[2]+'</div>' +
-          '<div style="font-weight:700;font-size:.85rem;color:#0a1628;">'+p[1]+'</div>' +
-          '<div style="font-size:.72rem;color:#6677aa;margin-top:.2rem;">Edit content & images →</div></div>';
-      }).join('') + '</div>';
-  }
-
-  // ── INDIVIDUAL PRODUCT PAGE ───────────────────────
-  if(sec.indexOf('prod-')===0 && sec!=='prod-hub') {
-    var pid=sec.replace('prod-','');
-    var names={mss:'Mechanical Shoe Seals',lmp:'Liquid Mounted Primary',vmp:'Vapour Mounted Primary',
-               sec:'Secondary Seals',wip:'Wiper Seals',rim:'Rim Seals',fit:'Seal Fittings',lp:'Lightning Protection'};
-    var pname=names[pid]||pid;
-    var tabBtn=function(label,tab){return '<button onclick="atab(this,\''+tab+'\')" class="atab" style="background:none;border:none;border-bottom:2px solid transparent;padding:.4rem .8rem;font-size:.78rem;cursor:pointer;color:#6677aa;">'+label+'</button>';};
-    var tabPane=function(id,content,active){return '<div class="atpane'+(active?' on':'')+'" id="'+id+'" style="'+(active?'':'display:none;')+'padding-top:.8rem;">'+content+'</div>';};
-    return '<div style="max-width:820px;">' +
-      '<div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem;">' +
-      '<button onclick="adminGo(\'prod-hub\')" style="background:none;border:1px solid #dde;border-radius:5px;padding:.3rem .7rem;font-size:.78rem;cursor:pointer;">← Products</button>' +
-      '<h2 style="font-family:\'Barlow Condensed\',sans-serif;font-size:1.3rem;font-weight:800;margin:0;">'+pname+'</h2></div>' +
-      W('', '<div style="display:flex;gap:0;border-bottom:2px solid #f0f4f8;margin-bottom:.5rem;">' +
-        tabBtn('Content','pp-ct-'+pid)+tabBtn('Images','pp-im-'+pid)+tabBtn('Video','pp-vi-'+pid)+tabBtn('Specs','pp-sp-'+pid)+'</div>' +
-        tabPane('pp-ct-'+pid, fg('Hero Description',pid+'_hero_desc','textarea')+g2(fg('Product Title',pid+'_title'),fg('Compliance',pid+'_compliance'))+fg('Intro Paragraph 1',pid+'_intro1','textarea')+fg('Intro Paragraph 2',pid+'_intro2','textarea')+btn('&#128190; Save Content','saveProdPage(\''+pid+'\')','background:#e8a020;color:#0a1628;'), true) +
+  /* ══════════════════════════════════════════════════════
+     INDIVIDUAL PRODUCT PAGE
+  ══════════════════════════════════════════════════════ */
+  if (sec.indexOf('prod-') === 0 && sec !== 'prod-hub') {
+    var pid = sec.replace('prod-', '');
+    var pnames = {mss:'Mechanical Shoe Seals',lmp:'Liquid Mounted Primary',vmp:'Vapour Mounted Primary',sec:'Secondary Seals',wip:'Wiper Seals',rim:'Rim Seals',fit:'Seal Fittings',lp:'Lightning Protection'};
+    var pn = pnames[pid] || pid;
+    var tabBtn = function(l,id,act){return '<button onclick="atab(this,\''+id+'\')" class="atab'+(act?' on':'')+'" style="background:none;border:none;border-bottom:2px solid '+(act?'#e8a020':'transparent')+';padding:.5rem 1rem;font-family:\'DM Sans\',sans-serif;font-size:.82rem;cursor:pointer;color:'+(act?'#0a1628':'#6677aa')+';">'+l+'</button>';};
+    var tabPane = function(id,content,act){return '<div class="atpane'+(act?' on':'')+'" id="'+id+'" style="padding-top:1rem;'+(act?'':'display:none;')+'">'+content+'</div>';};
+    return '<div style="max-width:860px;">' +
+      '<div style="display:flex;align-items:center;gap:.8rem;margin-bottom:1.2rem;">' +
+        '<button onclick="adminGo(\'prod-hub\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:6px;padding:.35rem .8rem;font-size:.78rem;cursor:pointer;color:#344054;">← Products</button>' +
+        '<h2 style="font-family:\'Barlow Condensed\',sans-serif;font-size:1.4rem;font-weight:800;margin:0;color:#0a1628;">'+pn+'</h2>' +
+      '</div>' +
+      W('',
+        '<div style="display:flex;gap:0;border-bottom:2px solid #f0f4f8;">' +
+          tabBtn('📝 Content','pp-ct-'+pid,true) + tabBtn('🖼 Images','pp-im-'+pid,false) +
+          tabBtn('▶ Video','pp-vi-'+pid,false) + tabBtn('📋 Specs','pp-sp-'+pid,false) + tabBtn('📰 Blog','pp-bl-'+pid,false) +
+        '</div>' +
+        tabPane('pp-ct-'+pid,
+          fg('Hero Description (banner text)',pid+'_hero_desc','textarea') +
+          row(fg('Product Title',pid+'_title'),fg('Compliance Badge',pid+'_compliance')) +
+          fg('Introduction Paragraph 1',pid+'_intro1','textarea') +
+          fg('Introduction Paragraph 2',pid+'_intro2','textarea') +
+          sv('saveProdPage(\''+pid+'\')'),
+          true) +
         tabPane('pp-im-'+pid, adminProdImgHTML(pid), false) +
-        tabPane('pp-vi-'+pid, fg('Video URL',pid+'_video_url')+fg('Video Caption',pid+'_video_caption')+btn('Preview','prevProdVid(\''+pid+'\')')+btn('Save','saveProdPage(\''+pid+'\')','background:#e8a020;color:#0a1628;'), false) +
-        tabPane('pp-sp-'+pid, fg('Specifications (one per line)',pid+'_specs','textarea')+btn('Save Specs','saveProdPage(\''+pid+'\')','background:#e8a020;color:#0a1628;'), false)
-      ) + '</div>';
+        tabPane('pp-vi-'+pid,
+          fg('Video URL (YouTube/Vimeo/MP4)',pid+'_video_url') +
+          fg('Video Caption',pid+'_video_caption') +
+          btn('▶ Preview','prevProdVid(\''+pid+'\')') + sv('saveProdPage(\''+pid+'\')') +
+          '<div id="vid-prev-'+pid+'" style="margin-top:.8rem;max-width:420px;aspect-ratio:16/9;background:#0a1628;border-radius:6px;overflow:hidden;"></div>',
+          false) +
+        tabPane('pp-sp-'+pid,
+          fg('Specifications (one per line)',pid+'_specs','textarea','API 650 Compliant\n25+ years experience\n...') +
+          sv('saveProdPage(\''+pid+'\')'),
+          false) +
+        tabPane('pp-bl-'+pid,
+          '<p style="font-size:.82rem;color:#6677aa;margin-bottom:.8rem;">Select related blog articles to show in the sidebar of this product page.</p>' +
+          '<div id="'+pid+'_blog_list" style="max-height:320px;overflow-y:auto;border:1px solid #dde4ed;border-radius:6px;padding:.6rem;"></div>' +
+          '<div style="margin-top:.8rem;">' + sv('saveProdPage(\''+pid+'\')') + '</div>',
+          false)
+      ) +
+    '</div>';
   }
 
-  // ── PAGES ─────────────────────────────────────────
-  if(sec==='pages') {
-    return '<div style="max-width:820px;">' +
-      W('Pages', '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' +
-        '<div id="pages-count" style="font-size:.78rem;color:#6677aa;"></div>' +
-        btn('+ New Page','openPageForm(0,0)','background:#e8a020;color:#0a1628;') + '</div>' +
-        '<div id="pages-tree"></div>') + '</div>';
+  /* ══════════════════════════════════════════════════════
+     PAGES
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'pages') {
+    return '<div style="max-width:860px;">' +
+      W('Pages', 
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' +
+          '<div id="pages-count" style="font-size:.78rem;color:#6677aa;"></div>' +
+          btn('+ New Page','openPageForm(0,0)','true') +
+        '</div>' +
+        '<div id="pages-tree"></div>') +
+    '</div>';
   }
 
-  // ── BLOG ──────────────────────────────────────────
-  if(sec==='blog') {
-    return '<div style="max-width:820px;">' +
-      W('Blog Articles', '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' +
-        '<div id="blog-count" style="font-size:.78rem;color:#6677aa;"></div>' +
-        btn('+ New Article','openBlogForm(null)','background:#e8a020;color:#0a1628;') + '</div>' +
-        '<div id="blog-list"></div>') + '</div>';
+  /* ══════════════════════════════════════════════════════
+     BLOG
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'blog') {
+    return '<div style="max-width:860px;">' +
+      W('Blog Articles',
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' +
+          '<div id="blog-count" style="font-size:.78rem;color:#6677aa;"></div>' +
+          btn('+ New Article','openBlogForm(null)',true) +
+        '</div>' +
+        '<div id="blog-list"></div>') +
+    '</div>';
   }
 
-  // ── MENUS ─────────────────────────────────────────
-  if(sec==='menus') {
-    return '<div style="max-width:820px;">' +
-      W('Menus', '<div id="menu-list" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;"></div>' +
-        btn('+ New Menu','openNewMenuModal()','background:#e8a020;color:#0a1628;')) +
-      W('Menu Editor', '<div id="menu-tree"></div>') + '</div>';
+  /* ══════════════════════════════════════════════════════
+     MENUS
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'menus') {
+    return '<div style="max-width:860px;">' +
+      W('Menus',
+        btn('+ New Menu','openNewMenuModal()',true) + 
+        '<div id="menu-list" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem;"></div>') +
+      W('Menu Tree Editor', '<div id="menu-tree"></div>') +
+    '</div>';
   }
 
-  // ── IMAGES ────────────────────────────────────────
-  if(sec==='images') {
-    return '<div style="max-width:900px;">' +
-      W('Upload Images', '<div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;">' +
-        '<label style="background:#e8a020;color:#0a1628;border-radius:5px;padding:.4rem .9rem;font-size:.8rem;font-weight:700;cursor:pointer;">&#128247; Upload Files<input type="file" accept="image/*" multiple style="display:none" onchange="handleUpload(this)"/></label>' +
-        btn('+ Add by URL','openModal(\'modal-imgurl\')')+
-        '<span id="img-lib-count" style="font-size:.78rem;color:#6677aa;margin-left:.5rem;"></span></div>') +
-      W('Library', '<div id="img-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.7rem;"></div>') + '</div>';
+  /* ══════════════════════════════════════════════════════
+     IMAGES
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'images') {
+    return '<div style="max-width:960px;">' +
+      W('Image Library',
+        '<div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">' +
+          '<label style="background:#e8a020;color:#0a1628;border-radius:6px;padding:.45rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;letter-spacing:.05em;">📷 Upload Files<input type="file" accept="image/*" multiple style="display:none;" onchange="handleUpload(this)"/></label>' +
+          btn('+ Add by URL','openModal(\'modal-imgurl\')') +
+          '<span id="img-lib-count" style="font-size:.78rem;color:#6677aa;margin-left:.4rem;"></span>' +
+        '</div>' +
+        '<div id="img-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.7rem;"></div>') +
+    '</div>';
   }
 
-  // ── VIDEOS ────────────────────────────────────────
-  if(sec==='videos') {
+  /* ══════════════════════════════════════════════════════
+     VIDEOS
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'videos') {
     return '<div style="max-width:700px;">' +
-      W('Add Video', fg('Title','vid_title')+fg('URL (YouTube/Vimeo/MP4)','vid_url')+fg('Description','vid_desc','textarea')+btn('Save Video','saveVideo()','background:#e8a020;color:#0a1628;')) +
-      W('Video Library', '<div id="video-list"></div>') + '</div>';
+      W('Add Video',
+        fg('Title','vid_title','text','e.g. Tank Seal Installation Overview') +
+        fg('URL (YouTube / Vimeo / MP4)','vid_url','text','https://youtube.com/watch?v=...') +
+        fg('Description','vid_desc','textarea') +
+        btn('💾 Save Video','saveVideo()',true)) +
+      W('Video Library', '<div id="video-list"></div>') +
+    '</div>';
   }
 
-  // ── PAGE BUILDER ──────────────────────────────────
-  if(sec==='page-builder') {
-    return '<div style="max-width:900px;">' +
-      W('Page Builder', 
-        '<div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem;flex-wrap:wrap;">' +
-          '<select id="pb-target" onchange="pbLoadPage(this.value)" style="border:1px solid #dde;border-radius:5px;padding:.4rem .7rem;font-size:.82rem;flex:1;min-width:200px;"></select>' +
-          btn('+ Add Row (1 col)','pbAddRow(1)')+btn('+ Add Row (2 cols)','pbAddRow(2)')+btn('+ Add Row (3 cols)','pbAddRow(3)')+
-          btn('&#128190; Save Layout','savePageLayout()','background:#e8a020;color:#0a1628;')+
-          btn('Clear','pbClear()') + '</div>' +
-          '<div style="font-size:.72rem;color:#6677aa;margin-bottom:.8rem;">Drag widgets from the library below into page rows. Each row can have 1, 2, or 3 columns.</div>' +
-          '<div id="pb-canvas" style="min-height:120px;border:2px dashed #dde4ed;border-radius:8px;padding:.8rem;background:#f8fafc;">' +
-          '<div class="pb-empty" style="text-align:center;padding:2rem;color:#aabbc8;font-size:.82rem;">No rows yet. Click &ldquo;Add Row&rdquo; above to start.</div></div>',
-        '') +
-      W('Widget Library', '<div id="pb-widget-lib" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.5rem;"></div>') + '</div>';
+  /* ══════════════════════════════════════════════════════
+     PAGE BUILDER
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'page-builder') {
+    return '<div style="max-width:960px;">' +
+      W('Page Layout Builder',
+        '<div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">' +
+          '<select id="pb-target" onchange="pbLoadPage(this.value)" style="border:1px solid #dde4ed;border-radius:6px;padding:.45rem .8rem;font-size:.84rem;flex:1;min-width:200px;color:#1a2535;"></select>' +
+          btn('+ 1 Column','pbAddRow(1)') + btn('+ 2 Columns','pbAddRow(2)') + btn('+ 3 Columns','pbAddRow(3)') +
+          btn('💾 Save Layout','savePageLayout()',true) + btn('🗑 Clear','pbClear()') +
+        '</div>' +
+        '<div style="font-size:.72rem;color:#8899aa;margin-bottom:.8rem;">Add rows, then drag widgets from the library below into each column.</div>' +
+        '<div id="pb-canvas" style="min-height:140px;border:2px dashed #dde4ed;border-radius:8px;padding:.8rem;background:#f8fafc;">' +
+          '<div class="pb-empty" style="text-align:center;padding:2rem;color:#aabbc8;font-size:.84rem;">No layout yet. Add rows above to start building.</div>' +
+        '</div>') +
+      W('Widget Drag Library', '<div id="pb-widget-lib" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.5rem;"></div>') +
+    '</div>';
   }
 
-  // ── WIDGETS ───────────────────────────────────────
-  if(sec==='widgets') {
-    return '<div style="max-width:900px;">' +
+  /* ══════════════════════════════════════════════════════
+     WIDGETS
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'widgets') {
+    return '<div style="max-width:960px;">' +
       W('Active Widgets', '<div id="active-widgets"></div>') +
-      W('Widget Library — Click to Add', '<div id="widget-lib" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.6rem;"></div>') + '</div>';
+      W('Widget Library — Click to Add', '<div id="widget-lib" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.7rem;"></div>') +
+    '</div>';
   }
 
-  // ── LINKS ─────────────────────────────────────────
-  if(sec==='links') {
-    return '<div style="max-width:700px;">' +
-      W('Links Manager', '<div style="display:flex;gap:.5rem;margin-bottom:.8rem;">' +
-        '<input id="link-search" placeholder="Search links…" style="border:1px solid #dde;border-radius:5px;padding:.4rem .7rem;font-size:.82rem;flex:1;" oninput="filterLinks(this.value)"/>' +
-        btn('+ Add Link','openLinkModal(null)','background:#e8a020;color:#0a1628;') + '</div>' +
-        '<div id="links-list"></div>') + '</div>';
+  /* ══════════════════════════════════════════════════════
+     LINKS
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'links') {
+    return '<div style="max-width:720px;">' +
+      W('Links Manager',
+        '<div style="display:flex;gap:.5rem;margin-bottom:.8rem;">' +
+          '<input id="link-search" placeholder="Search links…" oninput="filterLinks(this.value)" style="border:1px solid #dde4ed;border-radius:6px;padding:.45rem .8rem;font-size:.84rem;flex:1;"/>' +
+          btn('+ Add Link','openLinkModal(null)',true) +
+        '</div>' +
+        '<div id="links-list"></div>') +
+    '</div>';
   }
 
-  // ── CTA BUTTONS ───────────────────────────────────
-  if(sec==='cta-buttons') {
-    return '<div style="max-width:700px;">' +
-      W('CTA Buttons', '<div style="margin-bottom:.8rem;">'+btn('+ New CTA Button','openCtaModal(null)','background:#e8a020;color:#0a1628;')+'</div><table id="cta-tbl" style="width:100%;border-collapse:collapse;font-size:.82rem;"></table>') + '</div>';
+  /* ══════════════════════════════════════════════════════
+     CTA BUTTONS
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'cta-buttons') {
+    return '<div style="max-width:720px;">' +
+      W('CTA Buttons',
+        '<div style="margin-bottom:.8rem;">' + btn('+ New CTA Button','openCtaModal(null)',true) + '</div>' +
+        '<table id="cta-tbl" style="width:100%;border-collapse:collapse;font-size:.82rem;"></table>') +
+    '</div>';
   }
 
-  // ── SETTINGS ──────────────────────────────────────
-  if(sec==='settings') {
+  /* ══════════════════════════════════════════════════════
+     SETTINGS
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'settings') {
     return '<div style="max-width:600px;">' +
-      W('ImgBB API Key', fg('API Key (for external image hosting)','settings-imgbb-key') +
-        btn('Save Key','saveImgBBKey()','background:#e8a020;color:#0a1628;') +
-        '<p style="font-size:.75rem;color:#6677aa;margin-top:.5rem;">Get a free key at <a href="https://imgbb.com" target="_blank" style="color:#e8a020;">imgbb.com</a>. Without a key, images are stored locally in the browser.</p>') +
-      W('Danger Zone', btn('Reset All CMS Data','if(confirm(\'Reset all content to defaults?\'))resetCMS()','background:#dc3545;color:#fff;')) + '</div>';
+      W('Image Storage', fg('ImgBB API Key (optional, for cloud hosting)','settings-imgbb-key','text','Get free key at imgbb.com') +
+        '<p style="font-size:.75rem;color:#6677aa;margin:-.4rem 0 .8rem;">Without a key, uploaded images are stored locally in your browser. For persistent cross-device hosting, add an ImgBB key.</p>' +
+        btn('💾 Save Key','saveImgBBKey()',true)) +
+      W('Danger Zone',
+        '<p style="font-size:.82rem;color:#6677aa;margin-bottom:.8rem;">This will reset all CMS content to default values. This cannot be undone.</p>' +
+        '<button onclick="if(confirm(\'Reset all content to defaults? This cannot be undone.\'))resetCMS()" style="background:#dc3545;color:#fff;border:none;border-radius:6px;padding:.45rem 1rem;font-size:.8rem;font-weight:600;cursor:pointer;">⚠ Reset All CMS Data</button>') +
+    '</div>';
   }
 
-  return '<div style="padding:2rem;color:#6677aa;text-align:center;">Section <em>'+sec+'</em> — coming soon.</div>';
+  return '<div style="padding:3rem;text-align:center;color:#aabbc8;font-size:.9rem;">Section not found: ' + sec + '</div>';
 }
 
 function adminProdImgHTML(pid) {
-  var slot = function(label, slotId, imgId, phId) {
+  var slot = function(label, wrapId, imgId, phId, slotKey) {
     return '<div>' +
-      '<div style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6677aa;margin-bottom:.4rem;">'+label+'</div>' +
-      '<div id="'+slotId+'" onclick="adminPickProdImg(\''+pid+'\',\''+imgId.replace('adm-','').replace('-'+pid,'')+'\')" style="aspect-ratio:4/3;background:#f0f4f8;border:2px dashed #dde4ed;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;transition:border .15s;" onmouseover="this.style.borderColor=\'#e8a020\'" onmouseout="this.style.borderColor=\'#dde4ed\'">' +
-        '<img id="'+imgId+'" src="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0;" alt=""/>' +
-        '<div id="'+phId+'" style="text-align:center;color:#aabbc8;font-size:.75rem;"><div style="font-size:1.4rem;opacity:.4;">📷</div><div>Click to pick</div></div>' +
+      '<div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6677aa;margin-bottom:.4rem;">' + label + '</div>' +
+      '<div id="' + wrapId + '" onclick="adminPickProdImg(\'' + pid + '\',\'' + slotKey + '\')" style="aspect-ratio:4/3;background:#f0f4f8;border:2px dashed #dde4ed;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;transition:border .15s;" onmouseover="this.style.borderColor=\'#e8a020\'" onmouseout="this.style.borderColor=\'#dde4ed\'">' +
+        '<img id="' + imgId + '" src="" style="width:100%;height:100%;object-fit:cover;display:none;position:absolute;inset:0;" alt=""/>' +
+        '<div id="' + phId + '" style="text-align:center;color:#aabbc8;font-size:.75rem;"><div style="font-size:1.4rem;opacity:.35;margin-bottom:.2rem;">📷</div>Click to choose</div>' +
       '</div>' +
-      '<button onclick="adminPickProdImg(\''+pid+'\',\''+imgId.replace('adm-','').replace('-'+pid,'')+'\')" style="margin-top:4px;width:100%;background:#f0f4f8;border:1px solid #dde;border-radius:4px;padding:.3rem;font-size:.72rem;cursor:pointer;">🖼 Choose from Gallery</button>' +
+      '<button onclick="adminPickProdImg(\'' + pid + '\',\'' + slotKey + '\')" style="margin-top:.4rem;width:100%;background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.35rem;font-size:.72rem;cursor:pointer;color:#344054;">🖼 Choose from Gallery</button>' +
     '</div>';
   };
-  return '<div>' +
-    '<p style="font-size:.78rem;color:#6677aa;margin-bottom:.8rem;">Click any slot to pick an image from the gallery. Changes apply instantly to the product page.</p>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;margin-bottom:.8rem;">' +
-      slot('Thumbnail 1','adm-t1-wrap-'+pid,'adm-t1-img-'+pid,'adm-t1-ph-'+pid) +
-      slot('Thumbnail 2','adm-t2-wrap-'+pid,'adm-t2-img-'+pid,'adm-t2-ph-'+pid) +
-      slot('Thumbnail 3','adm-t3-wrap-'+pid,'adm-t3-img-'+pid,'adm-t3-ph-'+pid) +
+  return '<p style="font-size:.8rem;color:#6677aa;margin-bottom:.9rem;">Click any slot to pick from Image Library. Changes apply immediately to the product page.</p>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.8rem;margin-bottom:1rem;">' +
+      slot('Thumbnail 1','adm-t1-wrap-'+pid,'adm-t1-img-'+pid,'adm-t1-ph-'+pid,'thumb1') +
+      slot('Thumbnail 2','adm-t2-wrap-'+pid,'adm-t2-img-'+pid,'adm-t2-ph-'+pid,'thumb2') +
+      slot('Thumbnail 3','adm-t3-wrap-'+pid,'adm-t3-img-'+pid,'adm-t3-ph-'+pid,'thumb3') +
     '</div>' +
-    '<div style="max-width:260px;">' +
-      slot('Main / Hero Image','adm-main-wrap-'+pid,'adm-main-img-'+pid,'adm-main-ph-'+pid) +
-    '</div>' +
-    '<div style="margin-top:.8rem;">' +
-      '<div style="font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6677aa;margin-bottom:.4rem;">Sidebar Factsheet Image</div>' +
-      '<button onclick="pickSidebarImg(\''+pid+'\')" style="background:#f0f4f8;border:1px solid #dde;border-radius:5px;padding:.4rem .8rem;font-size:.78rem;cursor:pointer;">🖼 Choose Factsheet Image</button>' +
-    '</div>' +
-  '</div>';
+    '<div style="max-width:280px;">' + slot('Main / Hero Image','adm-main-wrap-'+pid,'adm-main-img-'+pid,'adm-main-ph-'+pid,'main') + '</div>' +
+    '<div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f0f4f8;">' +
+      '<div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6677aa;margin-bottom:.5rem;">Sidebar Factsheet Image</div>' +
+      '<button onclick="pickSidebarImg(\'' + pid + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:6px;padding:.45rem .9rem;font-size:.8rem;cursor:pointer;">🖼 Choose Factsheet Image</button>' +
+    '</div>';
 }
 
 function pbLoadPage(slug) {
