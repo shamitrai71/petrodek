@@ -3420,3 +3420,166 @@ if(document.readyState==='loading'){
 
 
 </html>
+
+<!-- NEW PETRODEK ADMIN PANEL v2.0 - Clean CMS -->
+<div id="admin-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.9);">
+  <div id="admin-shell" style="position:absolute;top:0;right:0;bottom:0;left:0;max-width:1400px;margin:auto;height:95vh;display:flex;flex-direction:column;background:#fff;border-radius:12px;box-shadow:0 25px 50px rgba(0,0,0,.3);overflow:hidden;">
+
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
+      <div style="font-size:1.1rem;font-weight:700;color:#1e293b;">PETRO<span style="color:#e8a020;">DEK</span> Admin</div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:1rem;">
+        <span id="admin-time" style="font-size:.85rem;color:#64748b;"></span>
+        <a href="#" onclick="toggleAdmin()" style="color:#64748b;font-size:.9rem;">← Site</a>
+        <button onclick="logoutAdmin()" style="padding:.4rem .8rem;border:1px solid #e2e8f0;border-radius:6px;background:none;color:#475569;font-size:.85rem;cursor:pointer;">Logout</button>
+      </div>
+    </div>
+
+    <!-- SIDEBAR + MAIN -->
+    <div style="flex:1;display:flex;overflow:hidden;">
+
+      <!-- SIDEBAR -->
+      <div id="admin-sidebar" style="width:260px;background:#f1f5f9;border-right:1px solid #e2e8f0;overflow:auto;">
+        <div style="padding:1.5rem;">
+          <div onclick="setPanel('dashboard')" class="admin-nav-item active" data-panel="dashboard">
+            <span style="display:inline-block;width:32px;height:32px;background:#3b82f6;border-radius:6px;margin-right:.75rem;"></span>Dashboard
+          </div>
+          <div style="margin:1.5rem 0;height:1px;background:#e2e8f0;"></div>
+
+          <div onclick="setPanel('home')" class="admin-nav-item" data-panel="home">
+            <span style="display:inline-block;width:32px;height:32px;background:#10b981;border-radius:6px;margin-right:.75rem;"></span>Homepage
+          </div>
+          <div onclick="setPanel('products')" class="admin-nav-item" data-panel="products">
+            <span style="display:inline-block;width:32px;height:32px;background:#f59e0b;border-radius:6px;margin-right:.75rem;"></span>Products
+          </div>
+          <div onclick="setPanel('pages')" class="admin-nav-item" data-panel="pages">
+            <span style="display:inline-block;width:32px;height:32px;background:#8b5cf6;border-radius:6px;margin-right:.75rem;"></span>Pages
+          </div>
+          <div onclick="setPanel('media')" class="admin-nav-item" data-panel="media">
+            <span style="display:inline-block;width:32px;height:32px;background:#ef4444;border-radius:6px;margin-right:.75rem;"></span>Media
+          </div>
+          <div onclick="setPanel('builder')" class="admin-nav-item" data-panel="builder">
+            <span style="display:inline-block;width:32px;height:32px;background:#06b6d4;border-radius:6px;margin-right:.75rem;"></span>Builder
+          </div>
+          <div onclick="setPanel('widgets')" class="admin-nav-item" data-panel="widgets">
+            <span style="display:inline-block;width:32px;height:32px;background:#eab308;border-radius:6px;margin-right:.75rem;"></span>Widgets
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN CONTENT -->
+      <div style="flex:1;overflow:auto;padding:0;">
+        <div id="admin-title" style="padding:1.5rem 2rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;font-size:1.25rem;font-weight:600;color:#1e293b;">Dashboard</div>
+        <div id="admin-panels" style="padding:2rem;">
+          <!-- PANELS LOAD HERE -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.admin-nav-item {
+  display:flex;align-items:center;padding:.75rem 1rem;border-radius:8px;cursor:pointer;font-weight:500;color:#475569;transition:all .2s;
+  margin-bottom:.5rem;
+}
+.admin-nav-item:hover { background:#e2e8f0; color:#1e293b; }
+.admin-nav-item.active { background:#3b82f6; color:white; }
+.cms-card { background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.5rem; margin-bottom:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+.cms-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin:1rem 0; }
+.cms-field label { display:block; font-size:.875rem; font-weight:600; color:#374151; margin-bottom:.25rem; }
+.cms-field input, .cms-field textarea, .cms-field select { width:100%; padding:.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:.95rem; }
+.cms-btn { padding:.75rem 1.5rem; border:none; border-radius:8px; font-weight:600; cursor:pointer; transition:all .2s; margin:.25rem; }
+.cms-btn-primary { background:#3b82f6; color:white; }
+.cms-btn-primary:hover { background:#2563eb; }
+</style>
+
+<script>
+// CLEAN ADMIN LOGIC
+let currentPanel = 'dashboard';
+let cmsData = JSON.parse(localStorage.getItem('petrodekCMS') || '{}');
+
+function toggleAdmin() {
+  const overlay = document.getElementById('admin-overlay');
+  overlay.style.display = overlay.style.display === 'none' ? 'block' : 'none';
+}
+
+function setPanel(panel) {
+  currentPanel = panel;
+  document.querySelectorAll('.admin-nav-item').forEach(item => item.classList.remove('active'));
+  event.target.closest('.admin-nav-item').classList.add('active');
+  document.getElementById('admin-title').textContent = panel.charAt(0).toUpperCase() + panel.slice(1);
+  loadPanel(panel);
+}
+
+function loadPanel(panel) {
+  const panels = {
+    dashboard: '<div class="cms-card"><h2>Dashboard</h2><p>All systems operational. Homepage edits live instantly via localStorage.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:1.5rem;"><div class="cms-card" onclick="setPanel('home')"><div style="font-size:2rem;color:#10b981;">🏠</div><div>Homepage</div></div><div class="cms-card" onclick="setPanel('pages')"><div style="font-size:2rem;color:#8b5cf6;">📄</div><div>Pages (0)</div></div><div class="cms-card" onclick="setPanel('media')"><div style="font-size:2rem;color:#ef4444;">🖼️</div><div>Media (0)</div></div></div></div>',
+    home: '<div class="cms-card"><h2>Homepage Editor</h2><div class="cms-row"><div class="cms-field"><label>Hero Title</label><input id="hero-title" value="'+(cmsData.hero?.title || 'PETRODEK SYSTEMS')+'"></div><div class="cms-field"><label>Hero Subtitle</label><input id="hero-subtitle" value="'+(cmsData.hero?.subtitle || '')+'"></div></div><button class="cms-btn cms-btn-primary" onclick="saveHome()">Save Homepage</button></div>',
+    pages: '<div class="cms-card"><h2>Pages Manager</h2><p>Click + to add pages. Tree view coming soon.</p><button class="cms-btn cms-btn-primary" onclick="newPage()">+ New Page</button><div id="pages-list" style="margin-top:1rem;"></div></div>',
+    media: '<div class="cms-card"><h2>Media Library</h2><p>Upload images/videos. URLs copy to clipboard.</p><input type="file" id="media-upload" multiple style="margin:1rem 0;"><div id="media-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;"></div></div>',
+    builder: '<div class="cms-card"><h2>Page Builder</h2><p>Drag widgets to canvas (WIP)</p><div style="min-height:300px;border:2px dashed #d1d5db;border-radius:12px;padding:2rem;text-align:center;margin:1rem 0;color:#9ca3af;">Drop widgets here</div></div>',
+    widgets: '<div class="cms-card"><h2>Widget Library</h2><p>Hero, Text, Image, CTA, Stats, Cards</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:1rem;"><div class="cms-card" style="text-align:center;padding:1rem;"><div style="font-size:2.5rem;">🖼️</div><div>Hero</div></div><div class="cms-card" style="text-align:center;padding:1rem;"><div style="font-size:2.5rem;">📝</div><div>Text</div></div></div></div>'
+  };
+  document.getElementById('admin-panels').innerHTML = panels[panel] || '<div class="cms-card"><h2>Panel Loading...</h2></div>';
+}
+
+function saveHome() {
+  cmsData.hero = {
+    title: document.getElementById('hero-title').value,
+    subtitle: document.getElementById('hero-subtitle').value
+  };
+  localStorage.setItem('petrodekCMS', JSON.stringify(cmsData));
+  showToast('Homepage saved!');
+}
+
+function newPage() {
+  const name = prompt('Page title:');
+  if (name) {
+    if (!cmsData.pages) cmsData.pages = [];
+    cmsData.pages.push({id: Date.now(), title: name, slug: name.toLowerCase().replace(/\s+/g, '-'), content: ''});
+    localStorage.setItem('petrodekCMS', JSON.stringify(cmsData));
+    loadPanel('pages');
+  }
+}
+
+function showToast(msg) {
+  // Simple toast
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed;top:20px;right:20px;padding:1rem 1.5rem;background:#10b981;color:white;border-radius:8px;z-index:10000;';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function logoutAdmin() {
+  localStorage.removeItem('petrodekAdmin');
+  toggleAdmin();
+}
+
+// Auto-tick time
+setInterval(() => {
+  document.getElementById('admin-time').textContent = new Date().toLocaleTimeString('en-IN', {hour12: false});
+}, 1000);
+
+// Init on load
+if (localStorage.getItem('petrodekAdmin')) {
+  document.getElementById('admin-overlay').style.display = 'block';
+  setPanel('dashboard');
+}
+
+// Toggle hotkey: Ctrl+Shift+A
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+    if (!localStorage.getItem('petrodekAdmin')) {
+      const pass = prompt('Admin PIN:');
+      if (pass === 'super123') {
+        localStorage.setItem('petrodekAdmin', '1');
+        toggleAdmin();
+      }
+    } else {
+      toggleAdmin();
+    }
+  }
+});
+</script>
