@@ -2322,7 +2322,7 @@ function adminSectionHTML(sec) {
         fg('Video URL (MP4/YouTube/Vimeo)','h_vid_url') + fg('Video Type','h_vid_type'),
         '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Auto-play</label><select id="h_vid_auto" style="width:100%;border:1px solid #dde4ed;border-radius:6px;padding:.5rem .7rem;font-size:.84rem;"><option value="1">On</option><option value="0">Off</option></select></div>' +
         '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Loop</label><select id="h_vid_loop" style="width:100%;border:1px solid #dde4ed;border-radius:6px;padding:.5rem .7rem;font-size:.84rem;"><option value="1">On</option><option value="0">Off</option></select></div>'
-      ) + '<div id="hero-vid-status" style="font-size:.75rem;color:#6677aa;margin-bottom:.8rem;"></div><div id="hero-vid-preview" style="max-width:360px;aspect-ratio:16/9;background:#0a1628;border-radius:6px;overflow:hidden;"></div>',
+      ) + '<div id="hvid-status" style="font-size:.75rem;color:#6677aa;margin-bottom:.8rem;"></div><div id="hvid-preview-wrap" style="max-width:360px;display:none;"><video id="hvid-preview-video" style="width:100%;border-radius:6px;" muted playsinline></video><iframe id="hvid-preview-iframe" style="width:100%;aspect-ratio:16/9;border:none;border-radius:6px;display:none;" allowfullscreen></iframe><div id="hvid-preview-msg" style="background:#0a1628;color:#aabbc8;border-radius:6px;padding:1rem;font-size:.78rem;display:none;align-items:center;justify-content:center;text-align:center;min-height:80px;"></div></div>',
         btn('▶ Preview','prevHeroVid(gf(\'h_vid_url\'))') + sv('saveHero()')) +
     '</div>';
   }
@@ -2726,13 +2726,15 @@ function stab(el,pane){const par=el.closest('.card,.pn');par.querySelectorAll('.
 
 // ── LOAD ALL FIELDS ──
 function loadFields(){
+  try {
   const d=cmsGet();
-  const h=d.hero||{};sf('h_eyebrow',h.eyebrow);sf('h_h1',h.h1);sf('h_h1em',h.h1em);sf('h_sub',h.sub);sf('h_b1l',h.b1l);sf('h_b1u',h.btn1_url||h.b1u);sf('h_b2l',h.b2l);sf('h_b2u',h.b2u);sf('h_s1n',h.stat1_num||h.s1n);sf('h_s1l',h.stat1_lbl||h.s1l);sf('h_s2n',h.stat2_num||h.s2n);sf('h_s2l',h.stat2_lbl||h.s2l);sf('h_s3n',h.stat3_num||h.s3n);sf('h_s3l',h.stat3_lbl||h.s3l);sf('h_s4n',h.stat4_num||h.s4n);sf('h_s4l',h.stat4_lbl||h.s4l);sf('h_vid_url',h.vid_url||'');sf('h_vid_type',h.vid_type||'mp4');sf('h_vid_auto',h.vid_auto||'1');sf('h_vid_loop',h.vid_loop||'1');sf('h_vid_overlay',h.vid_overlay||'heavy');if(h.vid_url)prevHeroVid(h.vid_url);updateHeroVidStatus(h.vid_url);
+  const h=d.hero||{};sf('h_eyebrow',h.eyebrow);sf('h_h1',h.h1);sf('h_h1em',h.h1em);sf('h_sub',h.sub);sf('h_b1l',h.b1l);sf('h_b1u',h.btn1_url||h.b1u);sf('h_b2l',h.b2l);sf('h_b2u',h.b2u);sf('h_s1n',h.stat1_num||h.s1n);sf('h_s1l',h.stat1_lbl||h.s1l);sf('h_s2n',h.stat2_num||h.s2n);sf('h_s2l',h.stat2_lbl||h.s2l);sf('h_s3n',h.stat3_num||h.s3n);sf('h_s3l',h.stat3_lbl||h.s3l);sf('h_s4n',h.stat4_num||h.s4n);sf('h_s4l',h.stat4_lbl||h.s4l);sf('h_vid_url',h.vid_url||'');sf('h_vid_type',h.vid_type||'mp4');sf('h_vid_auto',h.vid_auto||'1');sf('h_vid_loop',h.vid_loop||'1');sf('h_vid_overlay',h.vid_overlay||'heavy');try{if(h.vid_url&&document.getElementById('hvid-preview-wrap'))prevHeroVid(h.vid_url);}catch(e){} try{updateHeroVidStatus(h.vid_url);}catch(e){}
   const ps=d.products_section||{};sf('ps_lbl',ps.lbl);sf('ps_ttl',ps.ttl);sf('ps_sub',ps.sub);
   const ab=d.about_section||{};sf('ab_lbl',ab.label||ab.lbl);sf('ab_ttl',ab.title||ab.ttl);sf('ab_p1',ab.body1||ab.p1);sf('ab_p2',ab.body2||ab.p2);sf('ab_s1n',ab.stat1_num||ab.s1n);sf('ab_s1l',ab.stat1_lbl||ab.s1l);sf('ab_s2n',ab.stat2_num||ab.s2n);sf('ab_s2l',ab.stat2_lbl||ab.s2l);sf('ab_s3n',ab.stat3_num||ab.s3n);sf('ab_s3l',ab.stat3_lbl||ab.s3l);sf('ab_s4n',ab.stat4_num||ab.s4n);sf('ab_s4l',ab.stat4_lbl||ab.s4l);
   const ct=d.cta_section||{};sf('ct_tag',ct.tag);sf('ct_ttl',ct.title||ct.ttl);sf('ct_sub',ct.sub);sf('ct_bl',ct.bl);sf('ct_bu',ct.bu);sf('ct_f1',ct.f1);sf('ct_f2',ct.f2);sf('ct_f3',ct.f3);sf('ct_f4',ct.f4);updCtaPrev();
   const ft=d.footer_section||{};sf('ft_tag',ft.tagline||ft.tag);
 sf('ft_copy',ft.copy);sf('ft_fb',ft.fb);sf('ft_tw',ft.tw);sf('ft_yt',ft.yt);sf('ft_ig',ft.ig);
+  } catch(e) { console.warn('loadFields partial error:',e); }
 }
 
 // ── SAVE SECTIONS ──
@@ -3322,10 +3324,11 @@ function updateHeroVidStatus(url){
 
 function prevHeroVid(url){
   if(!url || !url.trim()){
-    document.getElementById('hvid-preview-wrap').style.display='none';
+    var w0=document.getElementById('hvid-preview-wrap');if(w0)w0.style.display='none';
     return;
   }
   const wrap=document.getElementById('hvid-preview-wrap');
+  if(!wrap) return;
   const vidEl=document.getElementById('hvid-preview-video');
   const iframeEl=document.getElementById('hvid-preview-iframe');
   const msgEl=document.getElementById('hvid-preview-msg');
@@ -3425,13 +3428,31 @@ function nav(id, el) { aNav(id, el); }
 
 // Tab switching (new — for atab class)
 function atab(btn, paneId) {
+  // Find the tab container - walk up until we find a node containing both .atab and .atpane
   var par = btn.closest('.acard-body,.acard,.apane,.amodal');
-  if (!par) par = btn.parentElement.parentElement;
-  par.querySelectorAll('.atab').forEach(function(t) { t.classList.remove('on'); });
-  par.querySelectorAll('.atpane').forEach(function(t) { t.classList.remove('on'); });
+  if (!par) {
+    // Walk up the tree to find a container that has both tabs and panes
+    var el = btn.parentElement;
+    while(el && el !== document.body) {
+      if(el.querySelector('.atab') && el.querySelector('.atpane')) { par = el; break; }
+      el = el.parentElement;
+    }
+  }
+  if(!par) par = btn.parentElement.parentElement;
+  par.querySelectorAll('.atab').forEach(function(t) {
+    t.classList.remove('on');
+    t.style.borderBottomColor = 'transparent';
+    t.style.color = '#6677aa';
+  });
+  par.querySelectorAll('.atpane').forEach(function(t) {
+    t.classList.remove('on');
+    t.style.display = 'none';
+  });
   btn.classList.add('on');
+  btn.style.borderBottomColor = '#e8a020';
+  btn.style.color = '#0a1628';
   var pane = document.getElementById(paneId);
-  if (pane) pane.classList.add('on');
+  if(pane) { pane.classList.add('on'); pane.style.display = 'block'; }
 }
 
 // Also keep stab() working for old calls
