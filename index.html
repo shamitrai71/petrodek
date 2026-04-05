@@ -2,9 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>PETRODEK SYSTEMS</title>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Barlow:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 #app{min-height:100vh}
 .spa-loader{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a1628;color:rgba(255,255,255,.3);font-family:sans-serif;letter-spacing:.2em;text-transform:uppercase;font-size:.9rem}
@@ -895,7 +897,7 @@ html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--light);co
 /* ═══════════ ADMIN v2 CSS ═══════════ */
 
 /* ══════ PETRODEK ADMIN v2 — Industrial command-centre ══════ */
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+/* Fonts via <link> in <head> */
 
 :root{
   --ink:#0d1520; --ink2:#1a2535; --ink3:#243045;
@@ -2323,7 +2325,7 @@ function adminSectionHTML(sec) {
         '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Auto-play</label><select id="h_vid_auto" style="width:100%;border:1px solid #dde4ed;border-radius:6px;padding:.5rem .7rem;font-size:.84rem;"><option value="1">On</option><option value="0">Off</option></select></div>' +
         '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Loop</label><select id="h_vid_loop" style="width:100%;border:1px solid #dde4ed;border-radius:6px;padding:.5rem .7rem;font-size:.84rem;"><option value="1">On</option><option value="0">Off</option></select></div>'
       ) + '<div id="hvid-status" style="font-size:.75rem;color:#6677aa;margin-bottom:.8rem;"></div><div id="hvid-preview-wrap" style="max-width:360px;display:none;"><video id="hvid-preview-video" style="width:100%;border-radius:6px;" muted playsinline></video><iframe id="hvid-preview-iframe" style="width:100%;aspect-ratio:16/9;border:none;border-radius:6px;display:none;" allowfullscreen></iframe><div id="hvid-preview-msg" style="background:#0a1628;color:#aabbc8;border-radius:6px;padding:1rem;font-size:.78rem;display:none;align-items:center;justify-content:center;text-align:center;min-height:80px;"></div></div>',
-        btn('▶ Preview','prevHeroVid(gf(\'h_vid_url\'))') + sv('saveHero()')) +
+        btn('▶ Preview','prevHeroVid(gf(\'h_vid_url\'))') + btn('💾 Save Video','saveHeroVideo()',true)) +
     '</div>';
   }
 
@@ -2450,9 +2452,10 @@ function adminSectionHTML(sec) {
       W('Pages', 
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' +
           '<div id="pages-count" style="font-size:.78rem;color:#6677aa;"></div>' +
-          btn('+ New Page','openPageForm(0,0)','true') +
+          btn('+ New Page','openPageForm(0,0)',true) +
         '</div>' +
         '<div id="pages-tree"></div>') +
+      '<div id="page-form" style="display:none;margin-top:1rem;">' + W('Edit Page', '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' + '<span id="pf-title" style="font-weight:700;font-size:.9rem;color:#0a1628;">New Page</span>' + '<button onclick="closePageForm()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:#aabbc8;">✕</button>' + '</div>' + row(fg('Page Title','pf_title','text','e.g. About Us'), fg('Slug / URL','pf_slug','text','e.g. about-us.html')) + row(fg('Status','pf_status','text','Published / Draft'), fg('Template','pf_template','text','Default')) + row(fg('Parent Page (ID)','pf_parent','text','Leave blank for top level'), fg('Date','pf_date','text','2026-01-01')) + fg('Featured Image URL','pf_img','text','https://...') + '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Page Content</label><div id="pf_content" contenteditable="true" style="border:1px solid #dde4ed;border-radius:6px;padding:.7rem;min-height:120px;font-size:.85rem;line-height:1.6;">Start writing...</div></div>' + '<input type="hidden" id="pf_img_hidden"/>' , '<button id="pf-save-btn" onclick="savePage()" style="background:#e8a020;color:#0a1628;border:none;border-radius:6px;padding:.45rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;margin-right:.4rem;">💾 Save Page</button>' + '<button onclick="closePageForm()" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:6px;padding:.45rem .9rem;font-size:.8rem;cursor:pointer;">Cancel</button>' ) + '</div>' +
     '</div>';
   }
 
@@ -2467,6 +2470,7 @@ function adminSectionHTML(sec) {
           btn('+ New Article','openBlogForm(null)',true) +
         '</div>' +
         '<div id="blog-list"></div>') +
+      '<div id="blog-form" style="display:none;margin-top:1rem;">' + W('Blog Article Editor', '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' + '<span id="blogf-title" style="font-weight:700;font-size:.9rem;color:#0a1628;">New Article</span>' + '<button onclick="closeBlogForm()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:#aabbc8;">✕</button>' + '</div>' + row(fg('Article Title','bf_title','text','Enter article title'), fg('Category / Tag','bf_tag','text','e.g. Industry News')) + row(fg('Author','bf_author','text','Admin'), fg('Read Time','bf_time','text','5 min read')) + row(fg('Date','bf_date','text','01 Jan 2026'), fg('Status','bf_status','text','published')) + fg('Excerpt / Summary','bf_excerpt','textarea','Brief summary shown in listing...') + fg('Featured Image URL','bf_img','text','https://...') + fg('Publish Date','bf_pubdate','text','2026-01-01') + '<input type="hidden" id="bf_edit_id"/>' + '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Article Content</label>' + '<div style="border:1px solid #dde4ed;border-radius:6px;overflow:hidden;">' + '<div style="background:#f8fafc;border-bottom:1px solid #dde4ed;padding:.4rem .6rem;display:flex;gap:.3rem;">' + '<button onclick="document.execCommand(\'bold\')" style="background:none;border:1px solid #dde;border-radius:3px;padding:2px 7px;cursor:pointer;font-weight:700;font-size:.8rem;">B</button>' + '<button onclick="document.execCommand(\'italic\')" style="background:none;border:1px solid #dde;border-radius:3px;padding:2px 7px;cursor:pointer;font-style:italic;font-size:.8rem;">I</button>' + '<button onclick="document.execCommand(\'insertUnorderedList\')" style="background:none;border:1px solid #dde;border-radius:3px;padding:2px 7px;cursor:pointer;font-size:.8rem;">• List</button>' + '</div>' + '<div id="bf_content" contenteditable="true" style="padding:.7rem;min-height:200px;font-size:.85rem;line-height:1.6;">Write your article here...</div>' + '</div></div>' , '<button id="blogf-save-btn" onclick="saveBlog()" style="background:#e8a020;color:#0a1628;border:none;border-radius:6px;padding:.45rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;margin-right:.4rem;">💾 Save Article</button>' + '<button onclick="closeBlogForm()" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:6px;padding:.45rem .9rem;font-size:.8rem;cursor:pointer;">Cancel</button>' ) + '</div>' +
     '</div>';
   }
 
@@ -2479,6 +2483,7 @@ function adminSectionHTML(sec) {
         btn('+ New Menu','openNewMenuModal()',true) + 
         '<div id="menu-list" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem;"></div>') +
       W('Menu Tree Editor', '<div id="menu-tree"></div>') +
+      '<div class="amodal-bg" id="modal-menu">' + '<div class="amodal" style="position:relative;">' + '<button class="amodal-close" onclick="closeModal(\'modal-menu\')">&times;</button>' + '<div class="amodal-title">Create New Menu</div>' + '<div style="margin-bottom:.7rem;"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">Menu Name</label><input id="nm-name" placeholder="e.g. Main Navigation" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.5rem;"/></div>' + '<div style="margin-bottom:.7rem;"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">Location</label><select id="nm-loc" style="width:100%;border:1px solid #dde;border-radius:5px;padding:.5rem;"><option>Primary Navigation</option><option>Footer</option><option>Secondary</option></select></div>' + '<div style="display:flex;gap:.5rem;margin-top:1rem;">' + '<button onclick="createMenu()" style="background:#e8a020;color:#0a1628;border:none;border-radius:6px;padding:.45rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;">Save</button>' + '<button onclick="closeModal(\'modal-menu\')" style="background:#f0f4f8;border:1px solid #dde;border-radius:6px;padding:.45rem .9rem;font-size:.8rem;cursor:pointer;">Cancel</button>' + '</div></div></div>' +
     '</div>';
   }
 
@@ -2490,7 +2495,7 @@ function adminSectionHTML(sec) {
       W('Image Library',
         '<div style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem;">' +
           '<label style="background:#e8a020;color:#0a1628;border-radius:6px;padding:.45rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;letter-spacing:.05em;">📷 Upload Files<input type="file" accept="image/*" multiple style="display:none;" onchange="handleUpload(this)"/></label>' +
-          btn('+ Add by URL','openModal(\'modal-imgurl\')') +
+          '<button onclick="openImgUrlModal()" style="background:#0a1628;color:#fff;border:none;border-radius:6px;padding:.45rem 1rem;font-family:\'DM Sans\',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;">+ Add by URL</button>' +
           '<span id="img-lib-count" style="font-size:.78rem;color:#6677aa;margin-left:.4rem;"></span>' +
         '</div>' +
         '<div id="img-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.7rem;"></div>') +
@@ -2551,6 +2556,7 @@ function adminSectionHTML(sec) {
           btn('+ Add Link','openLinkModal(null)',true) +
         '</div>' +
         '<div id="links-list"></div>') +
+      '<div class="amodal-bg" id="modal-link">' + '<div class="amodal" style="position:relative;">' + '<button class="amodal-close" onclick="closeModal(\'modal-link\')">&times;</button>' + '<div class="amodal-title">Add / Edit Link</div>' + '<div id="link-modal-title" style="font-weight:700;margin-bottom:.8rem;">Add New Link</div>' + '<input type="hidden" id="lnk_eid"/>' + '<div style="margin-bottom:.6rem;"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">Label</label><input id="lnk_lbl" placeholder="Link text" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.5rem;"/></div>' + '<div style="margin-bottom:.6rem;"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">URL</label><input id="lnk_url" placeholder="https://..." style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.5rem;"/></div>' + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem;"><div><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">Category</label><input id="lnk_cat" placeholder="Navigation" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.5rem;"/></div><div><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">Target</label><select id="lnk_tgt" style="width:100%;border:1px solid #dde;border-radius:5px;padding:.5rem;"><option value="_self">Same tab</option><option value="_blank">New tab</option></select></div></div>' + '<div style="display:flex;gap:.5rem;margin-top:1rem;">' + '<button onclick="saveLink()" style="background:#e8a020;color:#0a1628;border:none;border-radius:6px;padding:.45rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;">Save</button>' + '<button onclick="closeModal(\'modal-link\')" style="background:#f0f4f8;border:1px solid #dde;border-radius:6px;padding:.45rem .9rem;font-size:.8rem;cursor:pointer;">Cancel</button>' + '</div></div></div>' +
     '</div>';
   }
 
@@ -2562,6 +2568,7 @@ function adminSectionHTML(sec) {
       W('CTA Buttons',
         '<div style="margin-bottom:.8rem;">' + btn('+ New CTA Button','openCtaModal(null)',true) + '</div>' +
         '<table id="cta-tbl" style="width:100%;border-collapse:collapse;font-size:.82rem;"></table>') +
+      '<div class="amodal-bg" id="modal-cta">' + '<div class="amodal" style="position:relative;">' + '<button class="amodal-close" onclick="closeModal(\'modal-cta\')">&times;</button>' + '<div class="amodal-title">CTA Button</div>' + '<div id="cta-modal-title" style="font-weight:700;margin-bottom:.8rem;">New CTA Button</div>' + '<input type="hidden" id="cta_eid"/>' + '<div style="margin-bottom:.6rem;"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">Label</label><input id="cta_lbl" placeholder="e.g. Buy Spares" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.5rem;"/></div>' + '<div style="margin-bottom:.6rem;"><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">URL</label><input id="cta_url" placeholder="https://..." style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.5rem;"/></div>' + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.6rem;"><div><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">Style</label><select id="cta_style" style="width:100%;border:1px solid #dde;border-radius:5px;padding:.5rem;"><option value="primary">Primary</option><option value="secondary">Secondary</option><option value="ghost">Ghost</option></select></div><div><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">Target</label><select id="cta_tgt" style="width:100%;border:1px solid #dde;border-radius:5px;padding:.5rem;"><option value="_self">Same tab</option><option value="_blank">New tab</option></select></div><div><label style="font-size:.72rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;">Placement</label><input id="cta_place" placeholder="Header" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.5rem;"/></div></div>' + '<div style="display:flex;gap:.5rem;margin-top:1rem;">' + '<button onclick="saveCtaBtn()" style="background:#e8a020;color:#0a1628;border:none;border-radius:6px;padding:.45rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;">Save</button>' + '<button onclick="closeModal(\'modal-cta\')" style="background:#f0f4f8;border:1px solid #dde;border-radius:6px;padding:.45rem .9rem;font-size:.8rem;cursor:pointer;">Cancel</button>' + '</div></div></div>' +
     '</div>';
   }
 
@@ -2648,6 +2655,12 @@ function pbAddWidgetToCell(cell, w) {
   tag.dataset.wname = w.name;
   tag.dataset.wicon = w.icon || '⬡';
   cell.appendChild(tag);
+}
+
+function openImgUrlModal() {
+  var m = document.getElementById('modal-imgurl');
+  if (m) { m.style.display = 'flex'; m.style.alignItems = 'center'; m.style.justifyContent = 'center'; }
+  else { showToast('URL modal not found','warn'); }
 }
 
 function doLogin(){
@@ -2775,9 +2788,9 @@ function insImg3(){const u=prompt('Image URL:','https://');if(u){document.getEle
 //  PAGES
 // ════════════════════════════════
 let editingPageId=null;
-function openPageForm(id){
+function openPageForm(id, parentId){
   editingPageId=id||null;
-  document.getElementById('page-form').style.display='block';
+  var _pf=document.getElementById('page-form');if(!_pf)return showToast('Navigate to Pages section first','warn');_pf.style.display='block';
   document.getElementById('pf-title').textContent=id?'Edit Page':'New Page';
   document.getElementById('pf-save-btn').textContent=id?'💾 Update Page':'💾 Save Page';
   // populate parent dropdown
@@ -2791,7 +2804,7 @@ function openPageForm(id){
   }
   document.getElementById('page-form').scrollIntoView({behavior:'smooth'});
 }
-function closePageForm(){document.getElementById('page-form').style.display='none';editingPageId=null;}
+function closePageForm(){var pf=document.getElementById('page-form');if(pf)pf.style.display='none';editingPageId=null;}
 function savePage(){
   const title=gf('pf_title').trim();if(!title){showToast('Enter a page title','warn');return;}
   const d=cmsGet();
@@ -2852,7 +2865,7 @@ function renderPages(){
 
 function openBuiltinPageEditor(pageId,pageTitle){
   editingPageId=null;
-  document.getElementById('page-form').style.display='block';
+  var _pf=document.getElementById('page-form');if(!_pf)return showToast('Navigate to Pages section first','warn');_pf.style.display='block';
   document.getElementById('pf-title').textContent='Editing: '+pageTitle;
   document.getElementById('pf-save-btn').textContent='Save Changes';
   var tEl=document.getElementById('pf_title');if(tEl)tEl.value=pageTitle;
@@ -2939,7 +2952,7 @@ function deletePostItem(id){if(!confirm('Delete?'))return;const d=cmsGet();d.pos
 let editingBlogId=null;
 function openBlogForm(id){
   editingBlogId=id||null;
-  document.getElementById('blog-form').style.display='block';
+  var _bf=document.getElementById('blog-form');if(!_bf)return showToast('Navigate to Blog section first','warn');_bf.style.display='block';
   document.getElementById('blogf-title').textContent=id?'Edit Article':'New Blog Article';
   document.getElementById('blogf-save-btn').textContent=id?'💾 Update Article':'💾 Save Article';
   if(id){const p=(cmsGet().blog_posts||[]).find(x=>x.id==id);if(p){sf('bf_title',p.title);sf('bf_tag',p.tag);sf('bf_time',p.time);sf('bf_date',p.date);sf('bf_author',p.author);sf('bf_icon',p.icon);sf('bf_status',p.status);sf('bf_excerpt',p.excerpt);sf('bf_img',p.img||'');sf('bf_pubdate',p.pubdate||'');document.getElementById('bf_content').innerHTML=p.content||'<p>Write your article here...</p>';}}
@@ -2947,7 +2960,7 @@ function openBlogForm(id){
   sf('bf_edit_id',id||'');
   document.getElementById('blog-form').scrollIntoView({behavior:'smooth'});
 }
-function closeBlogForm(){document.getElementById('blog-form').style.display='none';editingBlogId=null;}
+function closeBlogForm(){var bf=document.getElementById('blog-form');if(bf)bf.style.display='none';editingBlogId=null;}
 function saveBlog(){
   const title=gf('bf_title').trim();if(!title){showToast('Enter a title','warn');return;}
   const d=cmsGet();if(!d.blog_posts)d.blog_posts=[];
@@ -3248,7 +3261,7 @@ function openCtaModal(id){
   const eid=document.getElementById('cta_eid');eid.value=id||'';
   document.getElementById('cta-modal-title').textContent=id?'Edit CTA Button':'New CTA Button';
   if(!id){['cta_lbl','cta_url','cta_place'].forEach(x=>sf(x,''));sf('cta_style','primary');sf('cta_tgt','_self');}
-  document.getElementById('modal-cta').classList.add('open');
+  openModal('modal-cta');
 }
 function editCtaBtn(id){const b=(cmsGet().cta_buttons||[]).find(x=>x.id===id);if(!b)return;document.getElementById('cta_eid').value=id;sf('cta_lbl',b.lbl);sf('cta_url',b.url);sf('cta_style',b.style);sf('cta_tgt',b.target);sf('cta_place',b.placement);document.getElementById('cta-modal-title').textContent='Edit CTA Button';document.getElementById('modal-cta').classList.add('open');}
 function saveCtaBtn(){const lbl=gf('cta_lbl').trim(),url=gf('cta_url').trim();if(!lbl||!url){showToast('Label and URL required','warn');return;}const d=cmsGet();if(!d.cta_buttons)d.cta_buttons=[];const eid=gf('cta_eid');const btn={id:eid?parseInt(eid):Date.now(),lbl,url,style:gf('cta_style'),target:gf('cta_tgt'),placement:gf('cta_place')};if(eid){const idx=d.cta_buttons.findIndex(b=>b.id==eid);if(idx>-1)d.cta_buttons[idx]=btn;else d.cta_buttons.push(btn);}else d.cta_buttons.push(btn);cmsSet(d);closeModal('modal-cta');renderCtaBtns();showToast('CTA button saved');}
@@ -3275,9 +3288,11 @@ function saveLink(){const lbl=gf('lnk_lbl').trim(),url=gf('lnk_url').trim();if(!
 function delLink(id){if(!confirm('Delete link?'))return;const d=cmsGet();d.links=(d.links||[]).filter(l=>l.id!==id);cmsSet(d);renderLinks();showToast('Link deleted');}
 
 // ── MODALS ──
-function closeModal(id){document.getElementById(id).classList.remove('open');}
-
-// ── RESET ──
+function openModal(id){
+  var el=document.getElementById(id);
+  if(el){el.classList.add('open');el.style.display='flex';}
+}
+function closeModal(id){var el=document.getElementById(id);if(el){el.style.display='none';el.classList.remove('open');}}
 function resetCMS(){if(!confirm('Reset ALL CMS data to defaults? Cannot be undone.'))return;localStorage.removeItem(KEY);location.reload();}
 
 // ════════════════════════════════
@@ -3399,9 +3414,55 @@ function handleHeroVidUpload(inp){
 
 // Write video config into the site page localStorage so petrodek.html picks it up
 function applyHeroVideoToPage(url, type, auto, loop, overlay){
-  // The CMS engine already saves to localStorage via cmsUpd
-  // petrodek.html reads from localStorage key 'petrodek_cms' on load
-  // No extra action needed — just confirm it was saved
+  // Apply immediately to live page without requiring reload
+  try {
+    var heroVidEl = document.getElementById('hero-video');
+    if (!heroVidEl) return;
+    if (!url || !url.trim()) {
+      // Clear video
+      var src = heroVidEl.querySelector('source');
+      if (src) { src.setAttribute('src',''); }
+      heroVidEl.pause(); heroVidEl.load();
+      heroVidEl.style.display = 'none';
+      var iframe = document.getElementById('hero-video-iframe');
+      if (iframe) iframe.remove();
+      return;
+    }
+    var isYT = url.indexOf('youtube') >= 0 || url.indexOf('youtu.be') >= 0;
+    var isVimeo = url.indexOf('vimeo') >= 0;
+    if (isYT || isVimeo) {
+      heroVidEl.style.display = 'none';
+      var existing = document.getElementById('hero-video-iframe');
+      if (!existing) {
+        existing = document.createElement('iframe');
+        existing.id = 'hero-video-iframe';
+        existing.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;border:none;';
+        existing.allow = 'autoplay; muted';
+        heroVidEl.parentNode.insertBefore(existing, heroVidEl);
+      }
+      if (isYT) {
+        var ytm = url.match(/(?:v=|youtu\.be\/)([^&?\/]+)/);
+        if (ytm) existing.src = 'https://www.youtube.com/embed/' + ytm[1] + '?autoplay=1&mute=1&loop=1&playlist=' + ytm[1] + '&controls=0&modestbranding=1&playsinline=1';
+      } else {
+        var vim = url.match(/vimeo\.com\/(\d+)/);
+        if (vim) existing.src = 'https://player.vimeo.com/video/' + vim[1] + '?autoplay=1&muted=1&loop=1&background=1';
+      }
+    } else {
+      // MP4/WebM direct
+      var ifrEl = document.getElementById('hero-video-iframe');
+      if (ifrEl) ifrEl.remove();
+      var src = heroVidEl.querySelector('source');
+      if (src) {
+        src.setAttribute('src', url);
+        src.setAttribute('type', type === 'webm' ? 'video/webm' : 'video/mp4');
+      }
+      heroVidEl.muted = true;
+      heroVidEl.loop = loop !== '0';
+      heroVidEl.load();
+      heroVidEl.style.display = '';
+      if (auto !== '0') heroVidEl.play().catch(function(){});
+    }
+  } catch(e) { console.warn('applyHeroVideoToPage error:', e); }
 }
 
 
@@ -3944,6 +4005,51 @@ function bindCMS(){
       else el.textContent=v;
     }
   });
+  // Apply hero video from CMS to live page
+  try {
+    var heroVidUrl = (data.hero && data.hero.vid_url) ? data.hero.vid_url.trim() : '';
+    var heroVidType = (data.hero && data.hero.vid_type) ? data.hero.vid_type : 'mp4';
+    var heroVidEl = document.getElementById('hero-video');
+    if (heroVidEl && heroVidUrl) {
+      var isYT = heroVidUrl.indexOf('youtube') >= 0 || heroVidUrl.indexOf('youtu.be') >= 0;
+      var isVimeo = heroVidUrl.indexOf('vimeo') >= 0;
+      if (isYT || isVimeo) {
+        // YouTube/Vimeo: replace video with iframe
+        heroVidEl.style.display = 'none';
+        var existingIframe = document.getElementById('hero-video-iframe');
+        if (!existingIframe) {
+          var heroIframe = document.createElement('iframe');
+          heroIframe.id = 'hero-video-iframe';
+          heroIframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;border:none;';
+          heroIframe.allow = 'autoplay; muted';
+          if (isYT) {
+            var ytm = heroVidUrl.match(/(?:v=|youtu\.be\/)([^&?\/]+)/);
+            if (ytm) heroIframe.src = 'https://www.youtube.com/embed/' + ytm[1] + '?autoplay=1&mute=1&loop=1&playlist=' + ytm[1] + '&controls=0&modestbranding=1&playsinline=1';
+          } else {
+            var vim = heroVidUrl.match(/vimeo\.com\/(\d+)/);
+            if (vim) heroIframe.src = 'https://player.vimeo.com/video/' + vim[1] + '?autoplay=1&muted=1&loop=1&background=1';
+          }
+          heroVidEl.parentNode.insertBefore(heroIframe, heroVidEl);
+        }
+      } else {
+        // MP4/WebM - set source src directly
+        var src = heroVidEl.querySelector('source');
+        if (src) {
+          var mimeType = heroVidType === 'webm' ? 'video/webm' : 'video/mp4';
+          if (src.getAttribute('src') !== heroVidUrl) {
+            src.setAttribute('src', heroVidUrl);
+            src.setAttribute('type', mimeType);
+            heroVidEl.load();
+          }
+          heroVidEl.style.display = '';
+          heroVidEl.muted = true;
+          var autoplay = !data.hero.vid_auto || data.hero.vid_auto === '1';
+          if (autoplay) heroVidEl.play().catch(function(){});
+        }
+      }
+    }
+  } catch(e) { console.warn('Hero video apply error:', e); }
+
   var grid=document.getElementById('cms-blog-grid');
   if(grid){
     var d2={};
