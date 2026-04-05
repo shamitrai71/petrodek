@@ -2822,6 +2822,17 @@ function showToast(msg,type='ok'){
 
 // Panel navigation (replaces nav())
 
+
+// COMPREHENSIVE PANEL FALLBACKS
+['pages','blog','menus','videos','links','cta-buttons','settings','prod-hub'].forEach(function(panelId){
+  window['render' + panelId.charAt(0).toUpperCase() + panelId.slice(1)] = function() {
+    var el = document.getElementById('pn-' + panelId);
+    if (el && el.children.length === 0) {
+      el.innerHTML = '<div class="cms-section" style="padding:2rem;text-align:center;color:var(--mid);"><h2>' + panelId.charAt(0).toUpperCase() + panelId.slice(1) + '</h2><p>This panel is ready to activate. Add content via the sidebar.</p></div>';
+    }
+  };
+});
+
 function aNav(id, el) {
   // Hide ALL possible panes explicitly
   ['dashboard','hero','products-sec','about-sec','cta-sec','footer-sec','prod-hub','prod-mss','prod-lmp','prod-vmp','prod-sec','prod-wip','prod-rim','prod-fit','prod-lp','pages','blog','menus','images','videos','page-builder','widgets','links','cta-buttons','settings'].forEach(function(p){
