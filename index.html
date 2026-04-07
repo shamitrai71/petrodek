@@ -1545,99 +1545,86 @@ var PAGES={
 const KEY='petrodek_cms';
 const MAX_LEVEL=3; // 0-indexed, so 4 visual levels
 
-const DEF={
-  hero:{eyebrow:'Best Available Emission Control Technologies',h1:'Floating',h1em:'Roof Tanks',sub:'Rim Seals & Seal Fittings · Lightning Protection · ESRAI GROUP',b1l:'Buy Spares →',btn1_url:'http://www.astspares.com',b1u:'http://www.astspares.com',b2l:'Our Products',b2u:'products.html',stat1_num:'25+',stat1_lbl:'Years Experience',stat2_num:'200+',stat2_lbl:'Installations',stat3_num:'4',stat3_lbl:'Major Clients',stat4_num:'100%',stat4_lbl:'API Compliant',vid_url:'',vid_type:'mp4',vid_auto:'1',vid_loop:'1',vid_overlay:'heavy'},
-  products_section:{lbl:'What We Offer',ttl:'Emission Control Solutions',sub:'Multi-decadal experience in design, supply and installation of rim seals, seal fittings and lightning protection systems.',c1i:'⬡',c1t:'Rim Seals',c1d:'High-performance primary and secondary rim seals engineered for floating roof tanks.',c1u:'rim-seals.html',c2i:'⚙',c2t:'Seal Fittings',c2d:'Precision-engineered fittings for rim seal systems.',c2u:'seal-fittings.html',c3i:'⚡',c3t:'Lightning Protection',c3d:'Advanced lightning protection for floating roof tanks.',c3u:'lightning-protection.html'},
-  about_section:{label:'About the Group',lbl:'About the Group',title:'ESRAI GROUP',ttl:'ESRAI GROUP',body1:'Sealworks is an ESRAI GROUP Enterprise.',body2:'We combine deep domain knowledge.',p1:'Sealworks is an ESRAI GROUP Enterprise — a trusted name in floating roof tank rim seal systems.',p2:'We combine deep domain knowledge and rigorous quality standards.',stat1_num:'25+',stat1_lbl:'Years in Industry',stat2_num:'200+',stat2_lbl:'Tank Installations',stat3_num:'5+',stat3_lbl:'Seal Product Types',stat4_num:'100%',stat4_lbl:'API Compliance'},
-  cta_section:{tag:'Emissions Calculator',title:'Connect to Tank Protocol',ttl:'Connect to Tank Protocol',sub:'Calculate VOC emissions from floating roof tanks based on seal type, tank geometry, and operational parameters.',bl:'Connect & Join →',bu:'http://www.tankprotocol.com',f1:'API 19.2 Methodology',f2:'All Seal Types',f3:'Instant Results',f4:'Export Reports'},
-  footer_section:{tagline:'An ESRAI GROUP Enterprise. Specialists in floating roof tank rim seals, seal fittings and lightning protection systems.',tag:'An ESRAI GROUP Enterprise. Specialists in floating roof tank rim seals, seal fittings and lightning protection systems.',copy:'© 2026 Petrodek Systems · All Rights Reserved · An ESRAI GROUP Enterprise',fb:'https://facebook.com',tw:'https://twitter.com',yt:'https://youtube.com',ig:'https://instagram.com'},
-  pages:[
-    {id:1,title:'Home',slug:'petrodek.html',status:'published',template:'Full Width',parent:0,date:'2026-01-01',children:[],img:''},
-    {id:2,title:'Products',slug:'products.html',status:'published',template:'Default',parent:0,date:'2026-01-05',children:[
-      {id:21,title:'Rim Seals',slug:'rim-seals.html',status:'published',template:'Default',parent:2,date:'2026-01-06',children:[
-        {id:211,title:'Mechanical Shoe Seals',slug:'mechanical-shoe-seals.html',status:'published',template:'Default',parent:21,date:'2026-01-07',children:[]},
-        {id:212,title:'Secondary Seals',slug:'secondary-seals.html',status:'published',template:'Default',parent:21,date:'2026-01-07',children:[]},
-      ]},
-      {id:22,title:'Seal Fittings',slug:'seal-fittings.html',status:'published',template:'Default',parent:2,date:'2026-01-08',children:[]},
-      {id:23,title:'Lightning Protection',slug:'lightning-protection.html',status:'published',template:'Default',parent:2,date:'2026-01-08',children:[]},
-    ]},
-    {id:3,title:'Blog',slug:'blog.html',status:'published',template:'Default',parent:0,date:'2026-01-10',children:[]},
-    {id:4,title:'Contact Us',slug:'contact.html',status:'published',template:'Contact',parent:0,date:'2026-01-10',children:[]},
-    {id:5,title:'About Sealworks',slug:'about.html',status:'published',template:'Default',parent:0,date:'2026-01-10',children:[]},
-  ],
-  posts:[
-    {id:1,title:'API MPMS Chapter 19.2 Overview',slug:'api-mpms-19-2',cat:'Technical',tags:'API,emissions,tanks',status:'published',date:'Mar 18, 2026',author:'Admin',excerpt:'Understanding the API MPMS Chapter 19.2 methodology for calculating VOC emissions.',img:''},
-    {id:2,title:'Rim Seal Selection Guide',slug:'rim-seal-guide',cat:'Technical',tags:'rim seals,selection',status:'published',date:'Feb 14, 2026',author:'Admin',excerpt:'A practical guide to selecting the correct primary and secondary rim seal combination.',img:''},
-    {id:3,title:'VOC Regulations India 2026',slug:'voc-regulations-2026',cat:'News',tags:'regulations,India,VOC',status:'draft',date:'Jan 30, 2026',author:'Admin',excerpt:'An overview of the latest CPCB guidelines governing VOC emissions.',img:''},
-  ],
-  blog_posts:[
-    {id:1,title:'API MPMS Chapter 19.2 — An Overview for Tank Operators',tag:'Technical Guide',time:'6 min read',excerpt:'Understanding the API MPMS Chapter 19.2 methodology for calculating VOC emissions from floating roof tanks.',date:'Mar 18, 2026',pubdate:'Mar 18, 2026',author:'Admin',icon:'⚙',status:'published',img:''},
-    {id:2,title:'Rim Seal Selection Guide — Which Seal Type Is Right for Your Tank?',tag:'Technical Guide',time:'8 min read',excerpt:'A practical guide to selecting the correct primary and secondary rim seal combination based on tank diameter and product type.',date:'Feb 14, 2026',pubdate:'Feb 14, 2026',author:'Admin',icon:'🛡',status:'published',img:''},
-    {id:3,title:'VOC Emission Regulations for Petroleum Storage Tanks in India — 2026 Update',tag:'Industry News',time:'5 min read',excerpt:'An overview of the latest CPCB and MoEFCC guidelines governing VOC emissions from petroleum storage terminals.',date:'Jan 30, 2026',pubdate:'Jan 30, 2026',author:'Admin',icon:'🌱',status:'published',img:''},
-    {id:4,title:'Lightning Protection for Floating Roof Tanks — API 545 Explained',tag:'Safety',time:'4 min read',excerpt:'A summary of API 545 bonding requirements for external floating roof tanks and the importance of maintaining electrical continuity.',date:'Jan 10, 2026',pubdate:'Jan 10, 2026',author:'Admin',icon:'⚡',status:'published',img:''},
-  ],
-  menus:[
-    {id:1,name:'Main Navigation',location:'Primary Navigation',items:[
-      {id:101,label:'Home',type:'page',url:'petrodek.html',level:0,open:true,children:[]},
-      {id:102,label:'Products',type:'page',url:'products.html',level:0,open:true,children:[
-        {id:201,label:'Rim Seals',type:'page',url:'rim-seals.html',level:1,open:true,children:[
-          {id:301,label:'Mechanical Shoe Seals',type:'page',url:'mechanical-shoe-seals.html',level:2,open:false,children:[
-            {id:401,label:'Type A — Standard',type:'custom',url:'#type-a',level:3,open:false,children:[]}
-          ]},
-          {id:302,label:'Secondary Seals',type:'page',url:'secondary-seals.html',level:2,open:false,children:[]},
-        ]},
-        {id:202,label:'Seal Fittings',type:'page',url:'seal-fittings.html',level:1,open:false,children:[]},
-        {id:203,label:'Lightning Protection',type:'page',url:'lightning-protection.html',level:1,open:false,children:[]},
-      ]},
-      {id:103,label:'Blog',type:'page',url:'blog.html',level:0,open:false,children:[]},
-      {id:104,label:'Contact Us',type:'page',url:'contact.html',level:0,open:false,children:[]},
-      {id:105,label:'Buy Spares',type:'custom',url:'http://www.astspares.com',level:0,open:false,children:[]},
-    ]},
-    {id:2,name:'Footer Menu',location:'Footer Menu',items:[
-      {id:111,label:'Privacy Policy',type:'custom',url:'#',level:0,open:false,children:[]},
-      {id:112,label:'Terms of Use',type:'custom',url:'#',level:0,open:false,children:[]},
-      {id:113,label:'About Sealworks',type:'page',url:'about.html',level:0,open:false,children:[]},
-    ]},
-  ],
-  videos:[
-    {id:1,title:'Tank Seal Installation Overview',url:'https://www.youtube.com/watch?v=dQw4w9WgXcQ',placement:'Hero Section',desc:'Overview of our tank seal installation process.',autoplay:'No'},
-    {id:2,title:'Emission Reduction at Refineries',url:'https://vimeo.com/123456789',placement:'Products Section',desc:'How our products help reduce VOC emissions.',autoplay:'No'},
-  ],
-  widgets:[],
-  cta_buttons:[
-    {id:1,lbl:'Buy Spares →',url:'http://www.astspares.com',style:'primary',target:'_blank',placement:'Hero / Header'},
-    {id:2,lbl:'Connect & Join →',url:'http://www.tankprotocol.com',style:'primary',target:'_blank',placement:'CTA Banner'},
-    {id:3,lbl:'Contact Our Engineers',url:'contact.html',style:'primary',target:'_self',placement:'Products page'},
-    {id:4,lbl:'Our Products',url:'products.html',style:'outline',target:'_self',placement:'Hero section'},
-  ],
-  links:[
-    {id:1,label:'Buy Spares',url:'http://www.astspares.com',target:'_blank',cat:'CTA'},
-    {id:2,label:'Tank Protocol',url:'http://www.tankprotocol.com',target:'_blank',cat:'CTA'},
-    {id:3,label:'Facebook',url:'https://facebook.com',target:'_blank',cat:'Social'},
-    {id:4,label:'Twitter / X',url:'https://twitter.com',target:'_blank',cat:'Social'},
-    {id:5,label:'YouTube',url:'https://youtube.com',target:'_blank',cat:'Social'},
-    {id:6,label:'Instagram',url:'https://instagram.com',target:'_blank',cat:'Social'},
-    {id:7,label:'Home',url:'petrodek.html',target:'_self',cat:'Navigation'},
-    {id:8,label:'Products',url:'products.html',target:'_self',cat:'Navigation'},
-    {id:9,label:'Blog',url:'blog.html',target:'_self',cat:'Navigation'},
-    {id:10,label:'Contact Us',url:'contact.html',target:'_self',cat:'Navigation'},
-  ],
-  images:[
-    {id:1,name:'reliance-logo.jpg',url:'https://petrodek.com/wp-content/uploads/2026/01/269711-300x300.jpg'},
-    {id:2,name:'nayara-logo.webp',url:'https://petrodek.com/wp-content/uploads/2026/01/OIP.webp'},
-    {id:3,name:'bnr-logo.png',url:'https://petrodek.com/wp-content/uploads/2026/01/BnR_logo_png-240x300.png'},
-    {id:4,name:'haldia-logo.png',url:'https://petrodek.com/wp-content/uploads/2026/01/images.png'},
-    {id:5,name:'oil-tanks-hero.jpg',url:''},
-  ]
-};
+// ── API CONFIG ─────────────────────────────────────────────────────────────
+// The CMS data now lives in Neon (PostgreSQL) via Netlify Functions.
+// GET  /.netlify/functions/cms          → public read (no auth)
+// POST /.netlify/functions/cms + JWT    → authenticated write
+// POST /.netlify/functions/login        → returns JWT token
+const API_BASE = '/.netlify/functions';
 
-function cmsGet(){try{const s=localStorage.getItem(KEY);if(!s)return JSON.parse(JSON.stringify(DEF));return deepMerge(JSON.parse(JSON.stringify(DEF)),JSON.parse(s));}catch(e){return JSON.parse(JSON.stringify(DEF));}}
-function cmsSet(d){try{localStorage.setItem(KEY,JSON.stringify(d));return true;}catch(e){showToast('Storage error','bad');return false;}}
+// In-memory cache so the rest of the code can call cmsGet() synchronously
+// after the initial load. cmsLoadFromServer() populates this on page boot.
+let _cmsCache = null;
+let _cmsToken = null; // JWT, kept in sessionStorage
+
+function _getToken() {
+  if (_cmsToken) return _cmsToken;
+  try { _cmsToken = sessionStorage.getItem('petrodek_jwt'); } catch(e) {}
+  return _cmsToken;
+}
+function _setToken(t) {
+  _cmsToken = t;
+  try { if(t) sessionStorage.setItem('petrodek_jwt',t); else sessionStorage.removeItem('petrodek_jwt'); } catch(e) {}
+}
+
+// ── PUBLIC: load CMS from server (called once at boot) ─────────────────────
+async function cmsLoadFromServer() {
+  try {
+    const r = await fetch(API_BASE + '/cms');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    _cmsCache = deepMerge(JSON.parse(JSON.stringify(DEF)), data);
+  } catch(e) {
+    console.warn('CMS load failed, using defaults:', e);
+    _cmsCache = JSON.parse(JSON.stringify(DEF));
+  }
+  // Re-apply bindings now that data is loaded
+  if (typeof bindCMS === 'function') bindCMS();
+  if (typeof heroVideo === 'function') heroVideo();
+  if (typeof loadBlogSidebars === 'function') loadBlogSidebars();
+  if (typeof loadCMSBlogGrid === 'function') loadCMSBlogGrid();
+}
+
+// ── SYNCHRONOUS READ (returns cached data) ─────────────────────────────────
+function cmsGet() {
+  if (!_cmsCache) _cmsCache = JSON.parse(JSON.stringify(DEF));
+  return _cmsCache;
+}
+
+// ── WRITE: saves to server (requires valid JWT) ────────────────────────────
+async function cmsSetAsync(d) {
+  const token = _getToken();
+  if (!token) { showToast('Not logged in','bad'); return false; }
+  _cmsCache = d; // optimistic update
+  try {
+    const r = await fetch(API_BASE + '/cms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(d)
+    });
+    if (r.status === 401) { showToast('Session expired — please log in again','bad'); _setToken(null); setAdminMode(false); return false; }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return true;
+  } catch(e) {
+    console.error('CMS save error:', e);
+    showToast('Save failed: ' + e.message, 'bad');
+    return false;
+  }
+}
+
+// Synchronous wrapper kept for backward compatibility with cmsSet(d) calls.
+// It fires-and-forgets the async save and returns true immediately.
+function cmsSet(d) {
+  _cmsCache = d;
+  cmsSetAsync(d).catch(function(e){ console.error('cmsSet async error:', e); });
+  return true;
+}
+
 function cmsUpd(sec,vals){const d=cmsGet();d[sec]={...(d[sec]||{}),...vals};cmsSet(d);}
 function deepMerge(def,stored){const out={...def};for(const k in stored){if(stored[k]!==null&&typeof stored[k]==='object'&&!Array.isArray(stored[k])&&typeof def[k]==='object'&&!Array.isArray(def[k])){out[k]=deepMerge(def[k],stored[k]);}else{out[k]=stored[k];}}return out;}
 
 // ── AUTH ──
-const CREDS={e:'esraigroup@gmail.com',p:'super123'};
+// Credentials are now validated server-side via /api/login (JWT)
 
 /* ═══════════════════════ IMAGE LIBRARY ═══════════════════════
    Hooks into existing cmsGet/cmsSet.
@@ -2716,27 +2703,49 @@ function openImgUrlModal() {
   else { showToast('URL modal not found','warn'); }
 }
 
-function doLogin(){
-  var e = document.getElementById('adm-em') || document.getElementById('lem');
-  var p = document.getElementById('adm-pw') || document.getElementById('lpw');
-  var ev = e ? e.value.trim() : '';
-  var pv = p ? p.value : '';
+async function doLogin(){
+  var eEl = document.getElementById('adm-em') || document.getElementById('lem');
+  var pEl = document.getElementById('adm-pw') || document.getElementById('lpw');
   var errEl = document.getElementById('adm-err') || document.getElementById('lerr');
-  if(ev === CREDS.e && pv === CREDS.p) {
-    var login = document.getElementById('adm-login');
-    var shell = document.getElementById('adm-shell');
-    if(login) login.style.display = 'none';
-    if(shell) { shell.style.display = 'flex'; shell.style.flexDirection = 'row'; shell.style.flexDirection = 'row'; }
-    sessionStorage.setItem('petrodek_admin_auth','1');
-    if(typeof initAdmin === 'function') initAdmin();
-    if(typeof setAdminMode === 'function') setAdminMode(true);
-  } else {
-    if(errEl) { errEl.style.display = 'block'; errEl.textContent = 'Invalid email or password.'; }
-    if(p) p.value = '';
-  }
-}
+  if(errEl) errEl.style.display='none';
+  var email = eEl ? eEl.value.trim() : '';
+  var pass  = pEl ? pEl.value : '';
+  if(!email||!pass){ if(errEl){errEl.style.display='block';errEl.textContent='Please enter email and password.';} return; }
 
-function doLogout(){sessionStorage.removeItem('petrodek_admin_auth');setAdminMode(false);(function(){var s=document.getElementById('adm-shell');if(s)s.style.display='none';})();(function(){var l=document.getElementById('adm-login');if(l)l.style.display='flex';})();document.getElementById('lem').value='';document.getElementById('lpw').value='';document.getElementById('lerr').style.display='none';}
+  // Show loading state
+  var btn = document.getElementById('adm-login-btn') || document.querySelector('#adm-login button');
+  var origText = btn ? btn.textContent : '';
+  if(btn){ btn.disabled=true; btn.textContent='Signing in…'; }
+
+  try {
+    var r = await fetch('/.netlify/functions/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email, password:pass})
+    });
+    var data = await r.json();
+    if(!r.ok || !data.token){
+      if(errEl){errEl.style.display='block';errEl.textContent='Invalid email or password.';}
+      if(btn){ btn.disabled=false; btn.textContent=origText; }
+      return;
+    }
+    _setToken(data.token);
+    // Load fresh CMS data now that we have auth
+    await cmsLoadFromServer();
+    var login = document.getElementById('adm-login');
+    if(login) login.style.display='none';
+    var shell = document.getElementById('adm-shell');
+    if(shell){ shell.style.display='flex'; }
+    try{sessionStorage.setItem('petrodek_admin_auth','1');}catch(x){}
+    if(typeof setAdminMode==='function') setAdminMode(true);
+    if(typeof adminGo==='function') adminGo('dashboard');
+  } catch(err) {
+    console.error('Login error:', err);
+    if(errEl){errEl.style.display='block';errEl.textContent='Login failed. Please try again.';}
+    if(btn){ btn.disabled=false; btn.textContent=origText; }
+  }
+
+function doLogout(){sessionStorage.removeItem('petrodek_admin_auth');_setToken(null);setAdminMode(false);(function(){var s=document.getElementById('adm-shell');if(s)s.style.display='none';})();(function(){var l=document.getElementById('adm-login');if(l)l.style.display='flex';})();document.getElementById('lem').value='';document.getElementById('lpw').value='';document.getElementById('lerr').style.display='none';}
 
 // ── NAV ──
 const TITLES={dashboard:'Dashboard',hero:'Hero Banner','products-sec':'Products Section','about-sec':'About Section','cta-sec':'CTA Banner','footer-sec':'Footer',pages:'Pages',posts:'Posts',blog:'Blog Articles',menus:'Menus',images:'Image Library',videos:'Videos',widgets:'Widgets','cta-buttons':'CTA Buttons',links:'Links Manager',settings:'Settings'};
@@ -3304,7 +3313,12 @@ function openModal(id){
   if(el){el.classList.add('open');el.style.display='flex';}
 }
 function closeModal(id){var el=document.getElementById(id);if(el){el.style.display='none';el.classList.remove('open');}}
-function resetCMS(){if(!confirm('Reset ALL CMS data to defaults? Cannot be undone.'))return;localStorage.removeItem(KEY);location.reload();}
+async function resetCMS(){
+  if(!confirm('Reset ALL CMS data to server defaults? Cannot be undone.'))return;
+  _cmsCache = JSON.parse(JSON.stringify(DEF));
+  var ok = await cmsSetAsync(_cmsCache);
+  if(ok){ showToast('CMS reset to defaults'); location.reload(); }
+}
 
 // ════════════════════════════════
 //  HERO VIDEO BACKGROUND (ADMIN)
@@ -3743,19 +3757,7 @@ function savePageLayout() {
 function atab_go(panelId) { aNav(panelId, null); }
 
 // Also hook up doLogin/doLogout to new shell
-var _baseDoLogin = doLogin;
-doLogin = function() {
-  var em = (document.getElementById('lem')||{value:''}).value.trim();
-  var pw = (document.getElementById('lpw')||{value:''}).value.trim();
-  var err = document.getElementById('lerr');
-  if (em === 'esraigroup@gmail.com' && pw === 'super123') {
-    if (err) err.style.display = 'none';
-    showAdminShell();
-  } else {
-    if (err) err.style.display = 'block';
-  }
-};
-
+// doLogin is now handled by the async API-based version above
 var _baseDoLogout = doLogout;
 doLogout = function() {
   hideAdminShell();
@@ -3956,25 +3958,7 @@ function afterRender(id){
       var btn=document.getElementById('adm-login-btn');
       if(btn&&!btn._wired){
         btn._wired=true;
-        btn.addEventListener('click',function(){
-          var em=document.getElementById('adm-em');
-          var pw=document.getElementById('adm-pw');
-          var ev=em?em.value.trim():'';
-          var pv=pw?pw.value:'';
-          if(ev===CREDS.e&&pv===CREDS.p){
-            try{sessionStorage.setItem('petrodek_admin_auth','1');}catch(x){}
-            var lg=document.getElementById('adm-login');
-            var sh=document.getElementById('adm-shell');
-            if(lg)lg.style.display='none';
-            if(sh){sh.style.display='flex';sh.style.flexDirection='row';}
-            if(typeof initAdmin==='function')initAdmin();
-            if(typeof setAdminMode==='function')setAdminMode(true);
-          } else {
-            var e2=document.getElementById('adm-err');
-            if(e2){e2.style.display='block';e2.textContent='Invalid email or password.';}
-            if(pw)pw.value='';
-          }
-        });
+        btn.addEventListener('click',function(){ doLogin(); });
       }
       ['adm-em','adm-pw'].forEach(function(eid){
         var inp=document.getElementById(eid);
@@ -4005,7 +3989,7 @@ function afterRender(id){
 }
 function bindCMS(){
   var data={};
-  try{var s=localStorage.getItem('petrodek_cms');if(s)data=JSON.parse(s);}catch(e){}
+  /* CMS data loaded from server via cmsGet() */
   document.querySelectorAll('[data-cms]').forEach(function(el){
     var pts=el.getAttribute('data-cms').split('.'),sec=pts[0],k=pts[1];
     if(data[sec]&&data[sec][k]!==undefined){
@@ -4063,7 +4047,7 @@ function bindCMS(){
   var grid=document.getElementById('cms-blog-grid');
   if(grid){
     var d2={};
-    try{var s2=localStorage.getItem('petrodek_cms');if(s2)d2=JSON.parse(s2);}catch(e){}
+    /* CMS data loaded from server via cmsGet() */
     if(d2.blog_posts){
       grid.innerHTML=d2.blog_posts.filter(function(p){return p.status!=='draft';})
         .map(function(p){
@@ -4081,7 +4065,7 @@ function bindCMS(){
 function heroVideo(){
   var vid=document.getElementById('hero-video');if(!vid)return;
   var data={};
-  try{var s=localStorage.getItem('petrodek_cms');if(s)data=JSON.parse(s);}catch(e){}
+  /* CMS data loaded from server via cmsGet() */
   var h=(data&&data.hero)?data.hero:{};
   var url=h.vid_url||'';
   if(!url){vid.style.display='none';return;}
@@ -4121,8 +4105,8 @@ function boot(){
   showPage((hash&&PAGES[hash])?hash:'home',false);
 }
 if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',boot);
-}else{boot();}
+  document.addEventListener('DOMContentLoaded',function(){ cmsLoadFromServer().then(boot); });
+}else{ cmsLoadFromServer().then(boot); }
 })();
 </script>
 
