@@ -1,5 +1,5 @@
 // netlify/functions/login.js
-// POST /api/login  { email, password }  → { token }
+// POST /.netlify/functions/login  { email, password }  → { token }
 
 const { neon } = require('@neondatabase/serverless');
 const bcrypt   = require('bcryptjs');
@@ -13,31 +13,45 @@ const CORS = {
 };
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
-  if (event.httpMethod !== 'POST')
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS, body: '' };
+  }
+  if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method not allowed' }) };
+  }
 
   let email, password;
   try {
-    ({ email, password } = JSON.parse(event.body || '{}'));
-  } catch {
+    const parsed = JSON.parse(event.body || '{}');
+    email    = parsed.email;
+    password = parsed.password;
+  } catch (parseErr) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Invalid JSON' }) };
   }
 
-  if (!email || !password)
+  if (!email || !password) {
     return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Email and password required' }) };
+  }
 
   try {
-    const sql = neon(process.env.DATABASE_URL);
-    const rows = await sql`SELECT id, email, password_hash FROM admin_users WHERE email = ${email.toLowerCase().trim()} LIMIT 1`;
+    const sql  = neon(process.env.DATABASE_URL);
+    const rows = await sql`
+      SELECT id, email, password_hash
+      FROM admin_users
+      WHERE email = ${email.toLowerCase().trim()}
+      LIMIT 1
+    `;
 
-    if (!rows.length)
+    if (!rows.length) {
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Invalid credentials' }) };
+    }
 
     const user = rows[0];
     const ok   = await bcrypt.compare(password, user.password_hash);
-    if (!ok)
+
+    if (!ok) {
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Invalid credentials' }) };
+    }
 
     const token = jwt.sign(
       { sub: user.id, email: user.email },

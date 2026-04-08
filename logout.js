@@ -1,6 +1,6 @@
 // netlify/functions/logout.js
-// Not strictly needed (JWTs are stateless) but provided for completeness.
-// The client-side doLogout() already clears sessionStorage.
+// JWTs are stateless — client just drops the token.
+// This endpoint exists for future server-side token blocklisting.
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -10,8 +10,8 @@ const CORS = {
 };
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
-  // JWT is stateless — the client just discards the token.
-  // This endpoint exists so you can add server-side token blocklisting later.
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS, body: '' };
+  }
   return { statusCode: 200, headers: CORS, body: JSON.stringify({ ok: true }) };
 };

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Petrodek Systems CMS backend via Netlify Functions + Neon",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.0",
     "bcryptjs": "^2.4.3",

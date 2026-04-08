@@ -1,6 +1,10 @@
 [build]
   publish = "public"
   functions = "netlify/functions"
+  command = "npm install"
+
+[build.environment]
+  NODE_VERSION = "20"
 
 [[headers]]
   for = "/*"
@@ -10,7 +14,7 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
 
 [[headers]]
-  for = "/api/*"
+  for = "/.netlify/functions/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"

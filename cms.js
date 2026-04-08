@@ -1,6 +1,6 @@
 // netlify/functions/cms.js
-// GET  /api/cms          → full CMS JSON  (public, no auth needed)
-// POST /api/cms  + JWT   → save CMS JSON  (admin only)
+// GET  /.netlify/functions/cms          → full CMS JSON  (public, no auth)
+// POST /.netlify/functions/cms + JWT    → save CMS JSON  (admin only)
 
 const { neon } = require('@neondatabase/serverless');
 const jwt      = require('jsonwebtoken');
@@ -16,20 +16,24 @@ function verifyToken(authHeader) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   try {
     return jwt.verify(authHeader.slice(7), process.env.JWT_SECRET);
-  } catch {
+  } catch (e) {
     return null;
   }
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: CORS, body: '' };
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS, body: '' };
+  }
 
   const sql = neon(process.env.DATABASE_URL);
 
-  // ── GET: return CMS data (public) ───────────────────────────
+  // ── GET: return CMS data (public) ──────────────────────────────────
   if (event.httpMethod === 'GET') {
     try {
-      const rows = await sql`SELECT data FROM cms_data WHERE site_id = 'petrodek' LIMIT 1`;
+      const rows = await sql`
+        SELECT data FROM cms_data WHERE site_id = 'petrodek' LIMIT 1
+      `;
       const data = rows.length ? rows[0].data : {};
       return { statusCode: 200, headers: CORS, body: JSON.stringify(data) };
     } catch (err) {
@@ -38,16 +42,19 @@ exports.handler = async (event) => {
     }
   }
 
-  // ── POST: save CMS data (authenticated) ─────────────────────
+  // ── POST: save CMS data (authenticated) ────────────────────────────
   if (event.httpMethod === 'POST') {
-    const user = verifyToken(event.headers['authorization'] || event.headers['Authorization']);
-    if (!user)
+    const authHeader = event.headers['authorization'] || event.headers['Authorization'] || '';
+    const user = verifyToken(authHeader);
+
+    if (!user) {
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Unauthorized' }) };
+    }
 
     let payload;
     try {
       payload = JSON.parse(event.body || '{}');
-    } catch {
+    } catch (parseErr) {
       return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Invalid JSON' }) };
     }
 
