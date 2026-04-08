@@ -1,7 +1,6 @@
 {
-  "name": "petrodek-cms",
+  "name": "petrodek-functions",
   "version": "1.0.0",
-  "description": "Petrodek Systems CMS backend via Netlify Functions + Neon",
   "private": true,
   "engines": {
     "node": ">=18.0.0"

@@ -2313,6 +2313,20 @@ function adminSectionHTML(sec) {
         tile('🔧','Page Builder','page-builder') + tile('⊞','Widgets','widgets',wc) +
         tile('🔗','Links','links') +
       '</div>') +
+      // ── DB Setup card ────────────────────────────────────────
+      '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:1.2rem 1.4rem;margin-top:.2rem;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;">' +
+          '<div style="display:flex;align-items:center;gap:.6rem;">' +
+            '<span style="font-size:1.2rem;">🗄</span>' +
+            '<div>' +
+              '<div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.88rem;letter-spacing:.06em;text-transform:uppercase;color:#0a1628;">Database</div>' +
+              '<div style="font-size:.7rem;color:#8899aa;">Neon PostgreSQL — auto-provisioned on deploy</div>' +
+            '</div>' +
+          '</div>' +
+          '<button onclick="runDbSetup()" id="db-setup-btn" style="background:#0a1628;color:#e8a020;border:none;border-radius:6px;padding:.35rem .85rem;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.08em;cursor:pointer;white-space:nowrap;">⚙ Run Setup</button>' +
+        '</div>' +
+        '<div id="db-setup-log" style="display:none;background:#f0f4f8;border-radius:6px;padding:.7rem .9rem;font-size:.75rem;font-family:monospace;color:#344054;line-height:1.7;max-height:160px;overflow-y:auto;"></div>' +
+      '</div>' +
     '</div>';
   }
 
@@ -3313,6 +3327,48 @@ function openModal(id){
   if(el){el.classList.add('open');el.style.display='flex';}
 }
 function closeModal(id){var el=document.getElementById(id);if(el){el.style.display='none';el.classList.remove('open');}}
+// ── DB SETUP ── called from admin dashboard ──────────────────────────────
+async function runDbSetup() {
+  var btn = document.getElementById('db-setup-btn');
+  var log = document.getElementById('db-setup-log');
+  if (!btn || !log) return;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Running…';
+  log.style.display = 'block';
+  log.textContent = 'Calling setup endpoint…';
+
+  try {
+    var token = _getToken();
+    if (!token) { log.textContent = '✗ Not logged in — cannot run setup.'; btn.disabled = false; btn.textContent = '⚙ Run Setup'; return; }
+
+    var r = await fetch(API_BASE + '/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+    });
+    var data = await r.json();
+
+    if (r.ok && data.ok) {
+      log.innerHTML = (data.log || []).map(function(l) {
+        return '<div style="color:' + (l.startsWith('✓') ? '#27ae60' : '#6677aa') + '">' + l + '</div>';
+      }).join('');
+      btn.textContent = '✓ Done';
+      btn.style.background = '#27ae60';
+      setTimeout(function() { btn.textContent = '⚙ Run Setup'; btn.style.background = ''; btn.disabled = false; }, 3000);
+      showToast('Database setup complete');
+    } else {
+      log.innerHTML = '<div style="color:#c0392b">✗ ' + (data.error || 'Setup failed') + '</div>' +
+        (data.log || []).map(function(l){ return '<div>' + l + '</div>'; }).join('');
+      btn.textContent = '⚙ Run Setup';
+      btn.disabled = false;
+    }
+  } catch (err) {
+    log.innerHTML = '<div style="color:#c0392b">✗ Network error: ' + err.message + '</div>';
+    btn.textContent = '⚙ Run Setup';
+    btn.disabled = false;
+  }
+}
+
 async function resetCMS(){
   if(!confirm('Reset ALL CMS data to server defaults? Cannot be undone.'))return;
   _cmsCache = JSON.parse(JSON.stringify(DEF));

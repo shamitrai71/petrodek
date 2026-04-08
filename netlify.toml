@@ -1,10 +1,13 @@
 [build]
   publish = "public"
   functions = "netlify/functions"
-  command = "npm install"
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Local build plugin — runs DB setup automatically after every deploy
+[[plugins]]
+  package = "./plugins/netlify-plugin-setup"
 
 [[headers]]
   for = "/*"
