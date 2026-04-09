@@ -2749,7 +2749,7 @@ async function doLogin(){
     }
     _setToken(data.token);
     // Load fresh CMS data now that we have auth
-    await cmsLoadFromServer();
+    cmsLoadFromServer(); // background refresh — don't await
     var login = document.getElementById('adm-login');
     if(login) login.style.display='none';
     var shell = document.getElementById('adm-shell');
@@ -4164,22 +4164,24 @@ function boot(){
   var hash=window.location.hash.replace('#','').trim();
   showPage((hash&&PAGES[hash])?hash:'home',false);
 }
-// Hard safety net: if cmsLoadFromServer hangs beyond 10s, boot anyway
-var _booted = false;
-function safeBoot() {
-  if (_booted) return;
-  _booted = true;
+// ── BOOT STRATEGY ──────────────────────────────────────────────────────────
+// 1. Boot IMMEDIATELY with defaults so the site is NEVER stuck on loading.
+// 2. Load CMS data from server in the background.
+// 3. Once CMS data arrives, re-apply bindings to update the visible page.
+// This means the site renders in <100ms regardless of API state.
+
+function runBoot() {
+  // Ensure cache has defaults before first render
   if (!_cmsCache) _cmsCache = JSON.parse(JSON.stringify(DEF));
   boot();
+  // Load fresh CMS data silently after page is visible
+  cmsLoadFromServer();
 }
-setTimeout(safeBoot, 10000);
 
 if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',function(){
-    cmsLoadFromServer().then(safeBoot).catch(safeBoot);
-  });
+  document.addEventListener('DOMContentLoaded', runBoot);
 }else{
-  cmsLoadFromServer().then(safeBoot).catch(safeBoot);
+  runBoot();
 }
 })();
 </script>
