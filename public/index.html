@@ -1570,12 +1570,16 @@ function _setToken(t) {
 // ── PUBLIC: load CMS from server (called once at boot) ─────────────────────
 async function cmsLoadFromServer() {
   try {
-    const r = await fetch(API_BASE + '/cms');
+    // 8-second timeout — if the function doesn't respond, fall back to defaults
+    const controller = new AbortController();
+    const timer = setTimeout(function() { controller.abort(); }, 8000);
+    const r = await fetch(API_BASE + '/cms', { signal: controller.signal });
+    clearTimeout(timer);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     _cmsCache = deepMerge(JSON.parse(JSON.stringify(DEF)), data);
   } catch(e) {
-    console.warn('CMS load failed, using defaults:', e);
+    console.warn('CMS load failed, using defaults:', e.message || e);
     _cmsCache = JSON.parse(JSON.stringify(DEF));
   }
   // Re-apply bindings now that data is loaded
@@ -4160,9 +4164,23 @@ function boot(){
   var hash=window.location.hash.replace('#','').trim();
   showPage((hash&&PAGES[hash])?hash:'home',false);
 }
+// Hard safety net: if cmsLoadFromServer hangs beyond 10s, boot anyway
+var _booted = false;
+function safeBoot() {
+  if (_booted) return;
+  _booted = true;
+  if (!_cmsCache) _cmsCache = JSON.parse(JSON.stringify(DEF));
+  boot();
+}
+setTimeout(safeBoot, 10000);
+
 if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',function(){ cmsLoadFromServer().then(boot); });
-}else{ cmsLoadFromServer().then(boot); }
+  document.addEventListener('DOMContentLoaded',function(){
+    cmsLoadFromServer().then(safeBoot).catch(safeBoot);
+  });
+}else{
+  cmsLoadFromServer().then(safeBoot).catch(safeBoot);
+}
 })();
 </script>
 
