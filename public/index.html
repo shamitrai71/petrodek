@@ -1544,6 +1544,72 @@ var PAGES={
 // ═══════════════════════════════════════════════════
 const KEY='petrodek_cms';
 const MAX_LEVEL=3; // 0-indexed, so 4 visual levels
+const DEF={
+  hero:{eyebrow:'Best Available Emission Control Technologies',h1:'Floating',h1em:'Roof Tanks',sub:'Rim Seals & Seal Fittings · Lightning Protection · ESRAI GROUP',b1l:'Buy Spares →',btn1_url:'http://www.astspares.com',b1u:'http://www.astspares.com',b2l:'Our Products',b2u:'products.html',stat1_num:'25+',stat1_lbl:'Years Experience',stat2_num:'200+',stat2_lbl:'Installations',stat3_num:'4',stat3_lbl:'Major Clients',stat4_num:'100%',stat4_lbl:'API Compliant',vid_url:'',vid_type:'mp4',vid_auto:'1',vid_loop:'1',vid_overlay:'heavy'},
+  products_section:{lbl:'What We Offer',ttl:'Emission Control Solutions',sub:'Multi-decadal experience in design, supply and installation of rim seals, seal fittings and lightning protection systems.',c1i:'⬡',c1t:'Rim Seals',c1d:'High-performance primary and secondary rim seals engineered for floating roof tanks.',c1u:'rim-seals.html',c2i:'⚙',c2t:'Seal Fittings',c2d:'Precision-engineered fittings for rim seal systems.',c2u:'seal-fittings.html',c3i:'⚡',c3t:'Lightning Protection',c3d:'Advanced lightning protection for floating roof tanks.',c3u:'lightning-protection.html'},
+  about_section:{label:'About the Group',lbl:'About the Group',title:'ESRAI GROUP',ttl:'ESRAI GROUP',body1:'Sealworks is an ESRAI GROUP Enterprise.',body2:'We combine deep domain knowledge.',p1:'Sealworks is an ESRAI GROUP Enterprise — a trusted name in floating roof tank rim seal systems.',p2:'We combine deep domain knowledge and rigorous quality standards.',stat1_num:'25+',stat1_lbl:'Years in Industry',stat2_num:'200+',stat2_lbl:'Tank Installations',stat3_num:'5+',stat3_lbl:'Seal Product Types',stat4_num:'100%',stat4_lbl:'API Compliance'},
+  cta_section:{tag:'Emissions Calculator',title:'Connect to Tank Protocol',ttl:'Connect to Tank Protocol',sub:'Calculate VOC emissions from floating roof tanks based on seal type, tank geometry, and operational parameters.',bl:'Connect & Join →',bu:'http://www.tankprotocol.com',f1:'API 19.2 Methodology',f2:'All Seal Types',f3:'Instant Results',f4:'Export Reports'},
+  footer_section:{tagline:'An ESRAI GROUP Enterprise. Specialists in floating roof tank rim seals, seal fittings and lightning protection systems.',tag:'An ESRAI GROUP Enterprise. Specialists in floating roof tank rim seals, seal fittings and lightning protection systems.',copy:'© 2026 Petrodek Systems · All Rights Reserved · An ESRAI GROUP Enterprise',fb:'https://facebook.com',tw:'https://twitter.com',yt:'https://youtube.com',ig:'https://instagram.com'},
+  pages:[
+    {id:1,title:'Home',slug:'petrodek.html',status:'published',template:'Full Width',parent:0,date:'2026-01-01',children:[],img:''},
+    {id:2,title:'Products',slug:'products.html',status:'published',template:'Default',parent:0,date:'2026-01-05',children:[
+      {id:21,title:'Rim Seals',slug:'rim-seals.html',status:'published',template:'Default',parent:2,date:'2026-01-06',children:[
+        {id:211,title:'Mechanical Shoe Seals',slug:'mechanical-shoe-seals.html',status:'published',template:'Default',parent:21,date:'2026-01-07',children:[]},
+        {id:212,title:'Secondary Seals',slug:'secondary-seals.html',status:'published',template:'Default',parent:21,date:'2026-01-07',children:[]},
+      ]},
+      {id:22,title:'Seal Fittings',slug:'seal-fittings.html',status:'published',template:'Default',parent:2,date:'2026-01-08',children:[]},
+      {id:23,title:'Lightning Protection',slug:'lightning-protection.html',status:'published',template:'Default',parent:2,date:'2026-01-08',children:[]},
+    ]},
+    {id:3,title:'Blog',slug:'blog.html',status:'published',template:'Default',parent:0,date:'2026-01-10',children:[]},
+    {id:4,title:'Contact Us',slug:'contact.html',status:'published',template:'Contact',parent:0,date:'2026-01-10',children:[]},
+    {id:5,title:'About Sealworks',slug:'about.html',status:'published',template:'Default',parent:0,date:'2026-01-10',children:[]},
+  ],
+  posts:[
+    {id:1,title:'API MPMS Chapter 19.2 Overview',slug:'api-mpms-19-2',cat:'Technical',tags:'API,emissions,tanks',status:'published',date:'Mar 18, 2026',author:'Admin',excerpt:'Understanding the API MPMS Chapter 19.2 methodology for calculating VOC emissions.',img:''},
+    {id:2,title:'Rim Seal Selection Guide',slug:'rim-seal-guide',cat:'Technical',tags:'rim seals,selection',status:'published',date:'Feb 14, 2026',author:'Admin',excerpt:'A practical guide to selecting the correct primary and secondary rim seal combination.',img:''},
+    {id:3,title:'VOC Regulations India 2026',slug:'voc-regulations-2026',cat:'News',tags:'regulations,India,VOC',status:'draft',date:'Jan 30, 2026',author:'Admin',excerpt:'An overview of the latest CPCB guidelines governing VOC emissions.',img:''},
+  ],
+  blog_posts:[
+    {id:1,title:'API MPMS Chapter 19.2 — An Overview for Tank Operators',tag:'Technical Guide',time:'6 min read',excerpt:'Understanding the API MPMS Chapter 19.2 methodology for calculating VOC emissions from floating roof tanks.',date:'Mar 18, 2026',pubdate:'Mar 18, 2026',author:'Admin',icon:'⚙',status:'published',img:''},
+    {id:2,title:'Rim Seal Selection Guide — Which Seal Type Is Right for Your Tank?',tag:'Technical Guide',time:'8 min read',excerpt:'A practical guide to selecting the correct primary and secondary rim seal combination based on tank diameter and product type.',date:'Feb 14, 2026',pubdate:'Feb 14, 2026',author:'Admin',icon:'🛡',status:'published',img:''},
+    {id:3,title:'VOC Emission Regulations for Petroleum Storage Tanks in India — 2026 Update',tag:'Industry News',time:'5 min read',excerpt:'An overview of the latest CPCB and MoEFCC guidelines governing VOC emissions from petroleum storage terminals.',date:'Jan 30, 2026',pubdate:'Jan 30, 2026',author:'Admin',icon:'🌱',status:'published',img:''},
+    {id:4,title:'Lightning Protection for Floating Roof Tanks — API 545 Explained',tag:'Safety',time:'4 min read',excerpt:'A summary of API 545 bonding requirements for external floating roof tanks and the importance of maintaining electrical continuity.',date:'Jan 10, 2026',pubdate:'Jan 10, 2026',author:'Admin',icon:'⚡',status:'published',img:''},
+  ],
+  menus:[
+    {id:1,name:'Main Navigation',location:'Primary Navigation',items:[
+      {id:101,label:'Home',type:'page',url:'petrodek.html',level:0,open:true,children:[]},
+      {id:102,label:'Products',type:'page',url:'products.html',level:0,open:true,children:[
+        {id:201,label:'Rim Seals',type:'page',url:'rim-seals.html',level:1,open:true,children:[
+          {id:301,label:'Mechanical Shoe Seals',type:'page',url:'mechanical-shoe-seals.html',level:2,open:false,children:[]},
+          {id:302,label:'Secondary Seals',type:'page',url:'secondary-seals.html',level:2,open:false,children:[]},
+        ]},
+        {id:202,label:'Seal Fittings',type:'page',url:'seal-fittings.html',level:1,open:false,children:[]},
+        {id:203,label:'Lightning Protection',type:'page',url:'lightning-protection.html',level:1,open:false,children:[]},
+      ]},
+      {id:103,label:'Blog',type:'page',url:'blog.html',level:0,open:false,children:[]},
+      {id:104,label:'Contact Us',type:'page',url:'contact.html',level:0,open:false,children:[]},
+      {id:105,label:'Buy Spares',type:'custom',url:'http://www.astspares.com',level:0,open:false,children:[]},
+    ]},
+  ],
+  videos:[],
+  widgets:[],
+  cta_buttons:[
+    {id:1,lbl:'Buy Spares →',url:'http://www.astspares.com',style:'primary',target:'_blank',placement:'Hero / Header'},
+    {id:2,lbl:'Connect & Join →',url:'http://www.tankprotocol.com',style:'primary',target:'_blank',placement:'CTA Banner'},
+  ],
+  links:[
+    {id:1,label:'Buy Spares',url:'http://www.astspares.com',target:'_blank',cat:'CTA'},
+    {id:2,label:'Tank Protocol',url:'http://www.tankprotocol.com',target:'_blank',cat:'CTA'},
+  ],
+  images:[
+    {id:1,name:'reliance-logo.jpg',url:'https://petrodek.com/wp-content/uploads/2026/01/269711-300x300.jpg'},
+    {id:2,name:'nayara-logo.webp',url:'https://petrodek.com/wp-content/uploads/2026/01/OIP.webp'},
+    {id:3,name:'bnr-logo.png',url:'https://petrodek.com/wp-content/uploads/2026/01/BnR_logo_png-240x300.png'},
+    {id:4,name:'haldia-logo.png',url:'https://petrodek.com/wp-content/uploads/2026/01/images.png'},
+  ],
+  products:{}
+};
+
 
 // ── API CONFIG ─────────────────────────────────────────────────────────────
 // The CMS data now lives in Neon (PostgreSQL) via Netlify Functions.
