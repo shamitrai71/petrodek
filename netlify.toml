@@ -1,0 +1,17 @@
+[[redirects]]
+from = "/images/*"
+to = "https://res.cloudinary.com/petrodek/image/fetch/f_auto,q_auto/https://petrodek.netlify.app/cld-assets/images/:splat?_a=BBFAAAAA0"
+status = 302
+force = true
+
+[[redirects]]
+from = "/cld-assets/images/*"
+to = "/images/:splat"
+status = 200
+force = true
+
+[context]
+
+  [context.production]
+
+  [context.main]
