@@ -1520,6 +1520,7 @@ const DEF={
   about_section:{label:'About the Group',lbl:'About the Group',title:'ESRAI GROUP',ttl:'ESRAI GROUP',body1:'Sealworks is an ESRAI GROUP Enterprise.',body2:'We combine deep domain knowledge.',p1:'Sealworks is an ESRAI GROUP Enterprise — a trusted name in floating roof tank rim seal systems.',p2:'We combine deep domain knowledge and rigorous quality standards.',stat1_num:'25+',stat1_lbl:'Years in Industry',stat2_num:'200+',stat2_lbl:'Tank Installations',stat3_num:'5+',stat3_lbl:'Seal Product Types',stat4_num:'100%',stat4_lbl:'API Compliance'},
   cta_section:{tag:'Emissions Calculator',title:'Connect to Tank Protocol',ttl:'Connect to Tank Protocol',sub:'Calculate VOC emissions from floating roof tanks based on seal type, tank geometry, and operational parameters.',bl:'Connect & Join →',bu:'http://www.tankprotocol.com',f1:'API 19.2 Methodology',f2:'All Seal Types',f3:'Instant Results',f4:'Export Reports'},
   footer_section:{tagline:'An ESRAI GROUP Enterprise. Specialists in floating roof tank rim seals, seal fittings and lightning protection systems.',tag:'An ESRAI GROUP Enterprise. Specialists in floating roof tank rim seals, seal fittings and lightning protection systems.',copy:'© 2026 Petrodek Systems · All Rights Reserved · An ESRAI GROUP Enterprise',fb:'https://facebook.com',tw:'https://twitter.com',yt:'https://youtube.com',ig:'https://instagram.com'},
+  theme:{accent:'#e8a020',navy:'#0a1628',steel:'#1c2e4a',light:'#f4f6f9',mid:'#8899aa',text:'#2c3e50',white:'#ffffff'},
   pages:[],
   posts:[
     {id:1,title:'API MPMS Chapter 19.2 Overview',slug:'api-mpms-19-2',cat:'Technical',tags:'API,emissions,tanks',status:'published',date:'Mar 18, 2026',author:'Admin',excerpt:'Understanding the API MPMS Chapter 19.2 methodology for calculating VOC emissions.',img:''},
@@ -1596,9 +1597,184 @@ function stripPhantomPages(pages){
     .filter(function(p){return p&&PHANTOM_SLUGS.indexOf((p.slug||'').toLowerCase())===-1;})
     .map(function(p){return Object.assign({},p,{children:stripPhantomPages(p.children||[])});});
 }
-function cmsGet(){try{const s=localStorage.getItem(KEY);if(!s)return JSON.parse(JSON.stringify(DEF));var merged=deepMerge(JSON.parse(JSON.stringify(DEF)),JSON.parse(s));merged.pages=stripPhantomPages(merged.pages||[]);return merged;}catch(e){return JSON.parse(JSON.stringify(DEF));}}
-function cmsSet(d){try{localStorage.setItem(KEY,JSON.stringify(d));return true;}catch(e){showToast('Storage error','bad');return false;}}
-function cmsUpd(sec,vals){const d=cmsGet();d[sec]={...(d[sec]||{}),...vals};cmsSet(d);}
+// ────────────────────────────────────────────────────────────────────
+//  CMS PERSISTENCE LAYER
+//  ─────────────────────
+//  Three layers:
+//    1. _cmsCache (in-memory)   — source of truth during a session.
+//                                 cmsGet() reads from here synchronously.
+//    2. localStorage             — offline fallback + cache for next page load.
+//    3. Netlify Blobs server     — source of truth across sessions/visitors.
+//                                 cmsBootstrap() loads it before render;
+//                                 cmsSet() writes it in the background.
+//  This keeps the existing 100+ synchronous cmsGet()/cmsSet() call sites
+//  working unchanged while making saves visible to all visitors.
+// ────────────────────────────────────────────────────────────────────
+var _cmsCache = null;
+var _cmsSavePending = null;     // Promise for the most recent in-flight save
+var _cmsSaveTimer = null;       // debounce handle so rapid edits coalesce
+var CMS_SAVE_DEBOUNCE_MS = 350;
+
+function _cmsBuildFromRaw(raw){
+  // Merge a raw stored blob with DEF so that fields added in newer versions of
+  // DEF are present even if the stored blob is older. Also strips phantom pages.
+  var merged = deepMerge(JSON.parse(JSON.stringify(DEF)), raw || {});
+  merged.pages = stripPhantomPages(merged.pages || []);
+  return merged;
+}
+
+// Synchronous read — never blocks. Returns the in-memory cache, falling back
+// to localStorage, falling back to DEF.
+function cmsGet(){
+  if(_cmsCache) return _cmsCache;
+  try {
+    var s = localStorage.getItem(KEY);
+    _cmsCache = _cmsBuildFromRaw(s ? JSON.parse(s) : null);
+  } catch(e){
+    _cmsCache = _cmsBuildFromRaw(null);
+  }
+  return _cmsCache;
+}
+
+// Synchronous write — updates cache and localStorage immediately, schedules a
+// debounced background POST to the server. Never blocks the caller.
+function cmsSet(d){
+  _cmsCache = d;
+  try { localStorage.setItem(KEY, JSON.stringify(d)); }
+  catch(e){ if(typeof showToast==='function') showToast('Local cache full','warn'); }
+  _cmsScheduleServerSave();
+  return true;
+}
+
+function cmsUpd(sec, vals){
+  const d = cmsGet();
+  d[sec] = { ...(d[sec] || {}), ...vals };
+  cmsSet(d);
+}
+
+function _cmsScheduleServerSave(){
+  if(_cmsSaveTimer) clearTimeout(_cmsSaveTimer);
+  _cmsSaveTimer = setTimeout(_cmsFlushToServer, CMS_SAVE_DEBOUNCE_MS);
+}
+
+// Sections currently persisted to the server. Everything else stays in
+// localStorage only until it's migrated. Keep in sync with ALLOWED_SECTIONS
+// in netlify/functions/cms-save.mjs.
+var LIVE_SECTIONS = ['theme', 'hero', 'footer_section'];
+
+function _cmsFlushToServer(){
+  _cmsSaveTimer = null;
+  if(!_cmsCache) return;
+  // Only send sections that are currently migrated to the server. Clipping
+  // server-bound data to the migrated set means a bug elsewhere in the app
+  // (e.g. corrupt pages[] in localStorage) can never clobber the server.
+  var payload = {};
+  LIVE_SECTIONS.forEach(function(key){
+    if(_cmsCache[key] !== undefined) payload[key] = _cmsCache[key];
+  });
+  if(Object.keys(payload).length === 0){
+    return; // nothing to send
+  }
+  var snapshot = JSON.stringify(payload);
+  _cmsSavePending = fetch('/api/cms-save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: snapshot,
+    keepalive: true,
+  }).then(function(r){
+    if(!r.ok){
+      return r.text().then(function(t){
+        throw new Error('save failed (' + r.status + '): ' + t.slice(0,200));
+      });
+    }
+    if(typeof _cmsOnSaveOk==='function') _cmsOnSaveOk();
+  }).catch(function(err){
+    console.warn('CMS server save failed:', err);
+    if(typeof _cmsOnSaveError==='function') _cmsOnSaveError(err);
+  });
+  return _cmsSavePending;
+}
+
+// Hooks the admin can override to surface save status in the UI.
+var _cmsOnSaveOk = null;
+var _cmsOnSaveError = null;
+
+// Called once on page load (from bindCMS or admin startup) to fetch the latest
+// server state before any rendering happens. The server only holds sections
+// that are in LIVE_SECTIONS — everything else stays local. So we MERGE server
+// data on top of local data rather than replacing.
+//
+// If the server is unreachable, we soldier on with the local cache.
+function cmsBootstrap(){
+  return fetch('/api/cms-get', { headers: { 'Accept': 'application/json' } })
+    .then(function(r){
+      if(!r.ok) throw new Error('cms-get HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(serverData){
+      // Start from whatever's already in the cache/localStorage (DEF-merged)
+      var local = cmsGet();
+      // Overlay only the live sections from the server
+      LIVE_SECTIONS.forEach(function(key){
+        if(serverData && serverData[key] !== undefined){
+          local[key] = serverData[key];
+        }
+      });
+      _cmsCache = local;
+      try { localStorage.setItem(KEY, JSON.stringify(_cmsCache)); } catch(e){}
+      // Re-apply the theme now that we potentially have new colours from the server
+      try { if (typeof applyTheme === 'function') applyTheme(_cmsCache.theme || {}); } catch(e){}
+      return _cmsCache;
+    })
+    .catch(function(err){
+      console.warn('CMS bootstrap from server failed, using local cache:', err);
+      // Fall through — cmsGet() will lazily build from localStorage on next call.
+      return cmsGet();
+    });
+}
+
+
+// ════════════════════════════════
+//  THEME / COLOUR PALETTE
+//  Applies saved theme colours as :root overrides on every page render.
+//  Uses a dedicated <style id="cms-theme"> block so reapplying replaces
+//  all variables atomically rather than accumulating inline overrides.
+// ════════════════════════════════
+var THEME_KEYS = ['accent','navy','steel','light','mid','text','white'];
+var THEME_DEFAULTS = {accent:'#e8a020',navy:'#0a1628',steel:'#1c2e4a',light:'#f4f6f9',mid:'#8899aa',text:'#2c3e50',white:'#ffffff'};
+
+function applyTheme(theme){
+  try {
+    theme = theme || {};
+    var css = ':root{';
+    THEME_KEYS.forEach(function(k){
+      var v = theme[k] || THEME_DEFAULTS[k];
+      // Basic hex validation — anything non-hex falls back to default
+      if(!/^#[0-9a-fA-F]{3,8}$/.test(v)) v = THEME_DEFAULTS[k];
+      css += '--' + k + ':' + v + ';';
+    });
+    css += '}';
+    var el = document.getElementById('cms-theme');
+    if(!el){
+      el = document.createElement('style');
+      el.id = 'cms-theme';
+      document.head.appendChild(el);
+    }
+    el.textContent = css;
+  } catch(e){ console.warn('applyTheme error:', e); }
+}
+
+function applyThemeFromCMS(){
+  try {
+    var d = cmsGet();
+    applyTheme(d.theme || {});
+  } catch(e){ applyTheme({}); }
+}
+
+// Apply saved theme as soon as this script executes so the site never
+// flashes default colours before the CMS layer is ready.
+try { applyThemeFromCMS(); } catch(e){}
+
 function deepMerge(def,stored){const out={...def};for(const k in stored){if(stored[k]!==null&&typeof stored[k]==='object'&&!Array.isArray(stored[k])&&typeof def[k]==='object'&&!Array.isArray(def[k])){out[k]=deepMerge(def[k],stored[k]);}else{out[k]=stored[k];}}return out;}
 
 // ── AUTH ──
@@ -2039,7 +2215,7 @@ function adminGo(sec) {
   var titles = {
     dashboard:'Dashboard', hero:'Hero Banner', 'products-sec':'Products Section',
     'about-sec':'About Section', 'cta-sec':'CTA Banner', 'footer-sec':'Footer',
-    pages:'Pages', blog:'Blog Articles',
+    pages:'Pages', blog:'Blog Articles', theme:'Theme & Colours',
     menus:'Menu Builder', images:'Image Library', videos:'Videos',
     'page-builder':'Page Builder', widgets:'Widgets', links:'Links Manager',
     'cta-buttons':'CTA Buttons', settings:'Settings'
@@ -2068,6 +2244,7 @@ function adminSectionInit(sec) {
     if(sec==='footer-sec') { loadFields(); }
     if(sec==='pages') { renderPages(); }
     if(sec==='blog') { renderBlog(); }
+    if(sec==='theme') { loadTheme(); }
     if(sec==='menus') { renderMenuList(); renderMenuTree(); }
     if(sec==='images') { renderImages(); }
     if(sec==='videos') { renderVideos(); }
@@ -2139,6 +2316,115 @@ function renderWidgetLibrary() {
 function loadSettingsSection() {
   var el = document.getElementById('settings-asset-base');
   if (el) el.value = ASSET_BASE_URL || '/assets/images/';
+}
+
+// ════════════════════════════════
+//  THEME EDITOR HANDLERS
+// ════════════════════════════════
+function loadTheme() {
+  var d = cmsGet();
+  var theme = d.theme || {};
+  THEME_KEYS.forEach(function(k){
+    var v = theme[k] || THEME_DEFAULTS[k];
+    var cp = document.getElementById('tcp-' + k);
+    var hx = document.getElementById('thx-' + k);
+    var sw = document.getElementById('tsw-' + k);
+    if (cp) cp.value = v;
+    if (hx) hx.value = v;
+    if (sw) sw.style.background = v;
+  });
+  setThemeStatus('');
+}
+
+// Called when the <input type="color"> picker changes
+function onThemeFieldChange(key) {
+  var cp = document.getElementById('tcp-' + key);
+  if (!cp) return;
+  var v = cp.value;
+  var hx = document.getElementById('thx-' + key);
+  if (hx) hx.value = v;
+  applyThemeFieldLive(key, v);
+}
+
+// Called when the hex text input changes; validate, update picker, apply
+function onThemeHexInput(key) {
+  var hx = document.getElementById('thx-' + key);
+  if (!hx) return;
+  var v = (hx.value || '').trim().toLowerCase();
+  if (v && v[0] !== '#') { v = '#' + v; hx.value = v; }
+  if (!/^#[0-9a-f]{6}$/i.test(v)) return; // only apply when fully typed
+  var cp = document.getElementById('tcp-' + key);
+  if (cp) cp.value = v;
+  applyThemeFieldLive(key, v);
+}
+
+function applyThemeFieldLive(key, value) {
+  var sw = document.getElementById('tsw-' + key);
+  if (sw) sw.style.background = value;
+  // Build a live-only theme from the current picker/hex values (not persisted yet)
+  var theme = {};
+  THEME_KEYS.forEach(function(k){
+    var cp = document.getElementById('tcp-' + k);
+    theme[k] = cp ? cp.value : THEME_DEFAULTS[k];
+  });
+  applyTheme(theme);
+  setThemeStatus('Previewing — click Save Palette to persist.', 'warn');
+}
+
+function saveTheme() {
+  var theme = {};
+  THEME_KEYS.forEach(function(k){
+    var cp = document.getElementById('tcp-' + k);
+    var v = cp ? cp.value : THEME_DEFAULTS[k];
+    if (!/^#[0-9a-fA-F]{6}$/.test(v)) v = THEME_DEFAULTS[k];
+    theme[k] = v;
+  });
+  cmsUpd('theme', theme);
+  applyTheme(theme);
+  setThemeStatus('Saving…', 'warn');
+  // Wire one-shot status callbacks so the admin sees when the network save
+  // actually completes (or fails). Debounced save fires ~350ms after cmsUpd.
+  _cmsOnSaveOk = function(){
+    setThemeStatus('Saved live ✓', 'ok');
+    if (typeof showToast === 'function') showToast('Palette saved live');
+    _cmsOnSaveOk = null; _cmsOnSaveError = null;
+  };
+  _cmsOnSaveError = function(err){
+    setThemeStatus('Save failed — retry or reload', 'err');
+    if (typeof showToast === 'function') showToast('Server save failed: ' + (err && err.message ? err.message : err), 'bad');
+    _cmsOnSaveOk = null; _cmsOnSaveError = null;
+  };
+}
+
+function resetTheme() {
+  if (!confirm('Reset all colours to the site defaults?')) return;
+  var theme = {};
+  THEME_KEYS.forEach(function(k){ theme[k] = THEME_DEFAULTS[k]; });
+  cmsUpd('theme', theme);
+  applyTheme(theme);
+  loadTheme();
+  setThemeStatus('Resetting…', 'warn');
+  _cmsOnSaveOk = function(){
+    setThemeStatus('Reset live ✓', 'ok');
+    if (typeof showToast === 'function') showToast('Palette reset live');
+    _cmsOnSaveOk = null; _cmsOnSaveError = null;
+  };
+  _cmsOnSaveError = function(err){
+    setThemeStatus('Reset failed — retry or reload', 'err');
+    if (typeof showToast === 'function') showToast('Server save failed: ' + (err && err.message ? err.message : err), 'bad');
+    _cmsOnSaveOk = null; _cmsOnSaveError = null;
+  };
+}
+
+function setThemeStatus(msg, kind) {
+  var el = document.getElementById('theme-status');
+  if (!el) return;
+  el.textContent = msg;
+  var color = '#6677aa';
+  if (kind === 'ok') color = '#16a34a';
+  else if (kind === 'warn') color = '#c97a00';
+  else if (kind === 'err') color = '#c0392b';
+  el.style.color = color;
 }
 
 function loadProdPageSection(pid) {
@@ -2249,6 +2535,9 @@ function adminSectionHTML(sec) {
         tile('📄','Pages','pages',pc) + tile('📝','Blog','blog',bc) +
         tile('☰','Menus','menus',mc) + tile('⚙','Settings','settings') +
       '</div>') +
+      W('Appearance','<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;">' +
+        tile('🎨','Theme & Colours','theme') +
+      '</div>') +
       W('Media & Build','<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.6rem;">' +
         tile('🖼','Images','images',ic) + tile('▶','Videos','videos',vc) +
         tile('🔧','Page Builder','page-builder') + tile('⊞','Widgets','widgets',wc) +
@@ -2347,6 +2636,90 @@ function adminSectionHTML(sec) {
   ══════════════════════════════════════════════════════ */
   if (sec === 'prod-hub' || (sec.indexOf('prod-') === 0 && sec !== 'prod-hub')) {
     return '';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     THEME & COLOURS
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'theme') {
+    // Named sections of the palette — name, variable key, short description,
+    // and an example of where the colour shows up on the public site.
+    var swatches = [
+      ['Brand Accent',      'accent', 'Primary brand colour — used for buttons, links, section labels, dividers, and active nav states.'],
+      ['Dark Background',   'navy',   'Main dark colour — used for the nav bar, hero background, footer, and dark sections.'],
+      ['Dark Accent',       'steel',  'Secondary dark colour — used in gradients and darker panels (e.g. About stats, value icons).'],
+      ['Page Background',   'light',  'Soft page background — used on the Products section and other light panels.'],
+      ['Body Text',         'text',   'Default body text colour across the site.'],
+      ['Muted Text',        'mid',    'Secondary text — captions, helper text, footer subtext, metadata.'],
+      ['White / Surface',   'white',  'Card and surface colour — used for product cards, blog cards, light panels.']
+    ];
+
+    var swatchRow = function(label, key, desc){
+      return '<div style="display:grid;grid-template-columns:56px 1fr 220px;gap:1rem;align-items:center;padding:.9rem;border:1px solid #e2e8f0;border-radius:8px;background:#fff;margin-bottom:.6rem;">' +
+        '<div id="tsw-' + key + '" style="width:48px;height:48px;border-radius:8px;border:1px solid #dde4ed;background:#fff;box-shadow:inset 0 0 0 2px #fff;"></div>' +
+        '<div>' +
+          '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:.95rem;font-weight:700;letter-spacing:.04em;color:#0a1628;">' + label + '</div>' +
+          '<div style="font-size:.72rem;color:#6677aa;line-height:1.5;margin-top:.2rem;">' + desc + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:.4rem;align-items:center;">' +
+          '<input type="color" id="tcp-' + key + '" oninput="onThemeFieldChange(\'' + key + '\')" style="width:44px;height:36px;border:1px solid #dde4ed;border-radius:5px;cursor:pointer;padding:2px;background:#fff;"/>' +
+          '<input type="text" id="thx-' + key + '" maxlength="7" oninput="onThemeHexInput(\'' + key + '\')" placeholder="#rrggbb" style="flex:1;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .55rem;font-family:\'DM Mono\',ui-monospace,monospace;font-size:.78rem;text-transform:lowercase;outline:none;"/>' +
+        '</div>' +
+      '</div>';
+    };
+
+    return '<div style="max-width:900px;">' +
+      W('About this editor',
+        '<div style="font-size:.82rem;color:#445;line-height:1.65;">' +
+          'Each section below controls one CSS colour variable used throughout the site. ' +
+          'Changes preview instantly in the admin. Click <strong>Save Palette</strong> to persist them — the palette is saved to the server and goes live for every visitor on their next page load.' +
+        '</div>' +
+        '<div style="margin-top:.7rem;background:#e8f7ee;border:1px solid #b7e5c9;border-left:3px solid #16a34a;border-radius:0 6px 6px 0;padding:.65rem .9rem;font-size:.76rem;color:#215a3a;line-height:1.55;">' +
+          '<strong>Live for everyone ✓</strong>: colour changes save to the server and apply to every visitor on their next page load. Theme, Hero, and Footer are on the server; other admin sections still use browser-local storage until they\'re migrated too.' +
+        '</div>'
+      ) +
+      W('Palette',
+        swatches.map(function(s){ return swatchRow(s[0], s[1], s[2]); }).join('') +
+        '<div style="display:flex;gap:.5rem;margin-top:.9rem;align-items:center;flex-wrap:wrap;">' +
+          '<button onclick="saveTheme()" style="background:#e8a020;color:#0a1628;border:none;border-radius:6px;padding:.55rem 1.2rem;font-weight:700;font-size:.85rem;cursor:pointer;">💾 Save Palette</button>' +
+          '<button onclick="resetTheme()" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:6px;padding:.55rem 1rem;font-size:.82rem;cursor:pointer;color:#344054;">Reset to Defaults</button>' +
+          '<span id="theme-status" style="font-size:.76rem;color:#6677aa;margin-left:.5rem;"></span>' +
+        '</div>'
+      ) +
+      W('Live Preview',
+        '<div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
+          // Mini nav
+          '<div style="background:var(--navy);color:var(--white);padding:.7rem 1rem;display:flex;align-items:center;gap:1rem;border-bottom:2px solid var(--accent);">' +
+            '<div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:800;letter-spacing:.08em;font-size:.9rem;">PETRO<span style="color:var(--accent);">DEK</span> SYSTEMS</div>' +
+            '<div style="display:flex;gap:.9rem;font-size:.72rem;color:var(--mid);">' +
+              '<span>Home</span><span>Products</span><span>Blog</span><span style="color:var(--accent);font-weight:700;">Admin</span>' +
+            '</div>' +
+          '</div>' +
+          // Hero-ish band
+          '<div style="background:var(--navy);color:var(--white);padding:1.6rem 1.2rem;">' +
+            '<div style="font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:.4rem;">BRAND ACCENT EYEBROW</div>' +
+            '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:1.8rem;font-weight:800;line-height:1;">Floating <span style="color:var(--accent);">Roof Tanks</span></div>' +
+            '<div style="margin-top:.8rem;display:flex;gap:.5rem;">' +
+              '<span style="background:var(--accent);color:var(--navy);padding:.35rem .8rem;border-radius:4px;font-size:.72rem;font-weight:700;">Primary Button</span>' +
+              '<span style="border:1px solid var(--accent);color:var(--accent);padding:.35rem .8rem;border-radius:4px;font-size:.72rem;font-weight:600;">Outline Button</span>' +
+            '</div>' +
+          '</div>' +
+          // Light panel
+          '<div style="background:var(--light);padding:1.2rem;">' +
+            '<div style="font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:.3rem;">SECTION LABEL</div>' +
+            '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:.3rem;">Product Card Heading</div>' +
+            '<div style="font-size:.78rem;color:var(--text);line-height:1.6;">Body text colour shows up here. ' +
+              '<span style="color:var(--mid);">Muted text looks like this for metadata and captions.</span></div>' +
+            '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.8rem;">' +
+              '<div style="background:var(--white);border-top:3px solid var(--accent);padding:.6rem;border-radius:4px;font-size:.7rem;color:var(--text);">Surface card</div>' +
+              '<div style="background:linear-gradient(135deg,var(--navy),var(--steel));color:var(--white);padding:.6rem;border-radius:4px;font-size:.7rem;">Dark gradient</div>' +
+              '<div style="background:var(--white);border:1px solid var(--mid);padding:.6rem;border-radius:4px;font-size:.7rem;color:var(--text);">Bordered card</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="font-size:.72rem;color:#8899aa;margin-top:.5rem;line-height:1.5;">This preview uses the same CSS variables as the live site, so it reflects your edits exactly.</div>'
+      ) +
+    '</div>';
   }
 
   /* ══════════════════════════════════════════════════════
@@ -3762,6 +4135,9 @@ function afterRender(id){
 function bindCMS(){
   var data={};
   try{var s=localStorage.getItem('petrodek_cms');if(s)data=JSON.parse(s);}catch(e){}
+  // Apply saved theme colours before anything else so the page paints with the
+  // admin's palette on first render (no flash of default colours).
+  try { if (typeof applyTheme === 'function') applyTheme(data.theme || {}); } catch(e){}
   document.querySelectorAll('[data-cms]').forEach(function(el){
     var pts=el.getAttribute('data-cms').split('.'),sec=pts[0],k=pts[1];
     if(data[sec]&&data[sec][k]!==undefined){
@@ -3875,7 +4251,15 @@ window.addEventListener('popstate',function(e){
 });
 function boot(){
   var hash=window.location.hash.replace('#','').trim();
-  showPage((hash&&PAGES[hash])?hash:'home',false);
+  var target = (hash && PAGES[hash]) ? hash : 'home';
+  // Fetch server-side CMS data (theme, hero, footer) before first render so
+  // admin edits are live for every visitor. If the network request fails we
+  // fall back to the local cache/DEF — the user still sees a working site.
+  if (typeof cmsBootstrap === 'function') {
+    cmsBootstrap().finally(function(){ showPage(target, false); });
+  } else {
+    showPage(target, false);
+  }
 }
 if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',boot);

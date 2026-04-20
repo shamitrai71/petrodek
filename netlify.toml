@@ -1,3 +1,10 @@
+[build]
+  functions = "netlify/functions"
+
+[functions]
+  # Use the v2 function runtime with ES modules
+  node_bundler = "esbuild"
+
 [[redirects]]
 from = "/images/*"
 to = "https://res.cloudinary.com/petrodek/image/fetch/f_auto,q_auto/https://petrodek.netlify.app/cld-assets/images/:splat?_a=BBFAAAAA0"
