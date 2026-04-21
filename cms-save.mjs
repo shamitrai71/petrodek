@@ -13,12 +13,26 @@ import { getStore } from "@netlify/blobs";
 
 const STORE_NAME = "cms";
 const KEY = "data";
-const MAX_BODY_BYTES = 5_000_000;
+const MAX_BODY_BYTES = 6_000_000; // ~6MB — Netlify Functions sync invocation limit
 
 const ALLOWED_SECTIONS = new Set([
   "theme",
   "hero",
-  "footer_section"
+  "products_section",
+  "about_section",
+  "cta_section",
+  "footer_section",
+  "pages",
+  "posts",
+  "blog_posts",
+  "menus",
+  "images",
+  "videos",
+  "widgets",
+  "cta_buttons",
+  "links",
+  "products",
+  "asset_base"
 ]);
 
 const HEADERS = {

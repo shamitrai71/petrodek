@@ -1657,10 +1657,18 @@ function _cmsScheduleServerSave(){
   _cmsSaveTimer = setTimeout(_cmsFlushToServer, CMS_SAVE_DEBOUNCE_MS);
 }
 
-// Sections currently persisted to the server. Everything else stays in
-// localStorage only until it's migrated. Keep in sync with ALLOWED_SECTIONS
-// in netlify/functions/cms-save.mjs.
-var LIVE_SECTIONS = ['theme', 'hero', 'footer_section'];
+// Sections persisted to the server. Anything not in this list stays in
+// localStorage only. Keep in sync with ALLOWED_SECTIONS in
+// netlify/functions/cms-save.mjs.
+var LIVE_SECTIONS = [
+  'theme', 'hero', 'products_section', 'about_section', 'cta_section',
+  'footer_section', 'pages', 'posts', 'blog_posts', 'menus', 'images',
+  'videos', 'widgets', 'cta_buttons', 'links', 'products', 'asset_base'
+];
+// Soft warning threshold — Netlify Functions accept up to ~6MB request
+// bodies. We warn the admin before they hit the hard limit so they can
+// move large embedded images to Cloudinary instead.
+var CMS_PAYLOAD_WARN_BYTES = 4_500_000;
 
 function _cmsFlushToServer(){
   _cmsSaveTimer = null;
@@ -1676,6 +1684,13 @@ function _cmsFlushToServer(){
     return; // nothing to send
   }
   var snapshot = JSON.stringify(payload);
+  if(snapshot.length > CMS_PAYLOAD_WARN_BYTES){
+    var mb = (snapshot.length / 1_000_000).toFixed(1);
+    console.warn('CMS payload is ' + mb + 'MB — approaching the ~6MB server limit. Move large embedded images to Cloudinary to keep saves working.');
+    if(typeof showToast === 'function'){
+      showToast('CMS data is ' + mb + 'MB. Approaching server limit — consider moving uploads to Cloudinary.', 'warn');
+    }
+  }
   _cmsSavePending = fetch('/api/cms-save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -2675,7 +2690,7 @@ function adminSectionHTML(sec) {
           'Changes preview instantly in the admin. Click <strong>Save Palette</strong> to persist them — the palette is saved to the server and goes live for every visitor on their next page load.' +
         '</div>' +
         '<div style="margin-top:.7rem;background:#e8f7ee;border:1px solid #b7e5c9;border-left:3px solid #16a34a;border-radius:0 6px 6px 0;padding:.65rem .9rem;font-size:.76rem;color:#215a3a;line-height:1.55;">' +
-          '<strong>Live for everyone ✓</strong>: colour changes save to the server and apply to every visitor on their next page load. Theme, Hero, and Footer are on the server; other admin sections still use browser-local storage until they\'re migrated too.' +
+          '<strong>Live for everyone ✓</strong>: every admin edit — colours, hero text, product copy, blog posts, images, menus, links — saves to the server and applies to every visitor on their next page load.' +
         '</div>'
       ) +
       W('Palette',
