@@ -2263,7 +2263,7 @@ function adminSectionInit(sec) {
     if(sec==='menus') { renderMenuList(); renderMenuTree(); }
     if(sec==='images') { renderImages(); }
     if(sec==='videos') { renderVideos(); }
-    if(sec==='page-builder') { initPageBuilder(); }
+    if(sec==='page-builder') { initBlockEditor(); }
     if(sec==='widgets') { renderWidgets(); renderWidgetLibrary(); }
     if(sec==='links') { renderLinks(); }
     if(sec==='cta-buttons') { renderCtaBtns(); }
@@ -2271,6 +2271,782 @@ function adminSectionInit(sec) {
     updateSbBadges();
   } catch(e) { console.error('adminSectionInit error:', e); }
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  BLOCK EDITOR
+//  ──────────────
+//  Structured editor that replaces the old Page Builder. Each page
+//  stored in cmsGet().pages has a blocks[] array describing its
+//  content. showPage() renders from blocks when present, falling
+//  back to the legacy hardcoded PAGES[id].html otherwise.
+//
+//  For this PoC only the 'rim-seals' page is enabled. Other pages
+//  will continue to use their built-in templates until migrated.
+// ════════════════════════════════════════════════════════════════════
+
+// Pages where admins can use block editing. Gate this carefully —
+// enabling a slug here means the stored blocks[] will OVERRIDE the
+// built-in PAGES[slug].html for site visitors.
+var BLOCK_EDITOR_SLUGS = ['rim-seals'];
+
+// Block type registry. Each entry describes a block type: its label,
+// icon, default data (used when newly added), a render(data) → HTML
+// function, and an edit(data, onChange) → HTML function for the
+// inline edit form. Keep this additive — adding a new type never
+// requires editing existing stored pages.
+var BLOCK_TYPES = {
+  'nav': {
+    label: 'Site Navigation',
+    icon: '☰',
+    desc: 'The top navigation bar. One per page, at the top.',
+    defaults: function(){ return { show_admin_link: true }; },
+    render: function(data){
+      return (
+        '<nav>' +
+          '<a href="javascript:void(0)" onclick="showPage(\'home\');return false;" class="logo">PETRO<span>DEK</span> SYSTEMS</a>' +
+          '<div class="hamburger" onclick="var nl=this.closest(\'nav\').querySelector(\'.nav-links\');nl.classList.toggle(\'open\');">' +
+            '<span></span><span></span><span></span>' +
+          '</div>' +
+          '<ul class="nav-links">' +
+            '<li><a href="javascript:void(0)" onclick="showPage(\'home\');return false;">Home</a></li>' +
+            '<li class="has-dropdown">' +
+              '<a href="javascript:void(0)" onclick="if(window.innerWidth&lt;=900){this.closest(\'.has-dropdown\').classList.toggle(\'open\');return false;}showPage(\'products\');return false;">Products &#9662;</a>' +
+              '<div class="dropdown">' +
+                '<div class="sub-dropdown">' +
+                  '<a href="javascript:void(0)" onclick="showPage(\'rim-seals\');return false;" style="font-weight:600;color:var(--accent);">Rim Seals &#9658;</a>' +
+                  '<div class="sub-dropdown-menu">' +
+                    '<a href="javascript:void(0)" onclick="showPage(\'mechanical-shoe-seals\');return false;">Mechanical Shoe Seals</a>' +
+                    '<a href="javascript:void(0)" onclick="showPage(\'liquid-mounted-primary-seals\');return false;">Liquid Mounted Primary</a>' +
+                    '<a href="javascript:void(0)" onclick="showPage(\'vapour-mounted-primary-seals\');return false;">Vapour Mounted Primary</a>' +
+                    '<a href="javascript:void(0)" onclick="showPage(\'secondary-seals\');return false;">Secondary Seals</a>' +
+                    '<a href="javascript:void(0)" onclick="showPage(\'wiper-seals\');return false;">Wiper Seals</a>' +
+                  '</div>' +
+                '</div>' +
+                '<a href="javascript:void(0)" onclick="showPage(\'seal-fittings\');return false;">Seal Fittings</a>' +
+                '<a href="javascript:void(0)" onclick="showPage(\'lightning-protection\');return false;">Lightning Protection</a>' +
+              '</div>' +
+            '</li>' +
+            '<li><a href="javascript:void(0)" onclick="showPage(\'blog\');return false;">Blog</a></li>' +
+            '<li><a href="javascript:void(0)" onclick="showPage(\'about\');return false;">ESRAI Group</a></li>' +
+            '<li><a href="javascript:void(0)" onclick="showPage(\'contact\');return false;">Contact Us</a></li>' +
+            (data.show_admin_link !== false ? '<li><a href="javascript:void(0)" onclick="showPage(\'admin\');return false;" class="nav-admin">&#9881; Admin</a></li>' : '') +
+          '</ul>' +
+        '</nav>'
+      );
+    },
+    edit: function(data, idPrefix){
+      return (
+        '<div style="font-size:.76rem;color:#6677aa;line-height:1.6;">The navigation is rendered from the standard site template. ' +
+        'Link labels and destinations can be edited in <strong>Admin → Menu Builder</strong>. ' +
+        'Use the checkbox below to hide the Admin link on this specific page.</div>' +
+        '<label style="display:flex;align-items:center;gap:.5rem;margin-top:.7rem;font-size:.84rem;">' +
+          '<input type="checkbox" ' + (data.show_admin_link !== false ? 'checked' : '') + ' ' +
+            'onchange="beUpdateBlockField(\'' + idPrefix + '\',\'show_admin_link\',this.checked)"/>' +
+          'Show the “⚙ Admin” link in the nav on this page' +
+        '</label>'
+      );
+    }
+  },
+  'hero-page': {
+    label: 'Page Hero (breadcrumb style)',
+    icon: '🎯',
+    desc: 'Dark gradient hero with eyebrow, two-part title, description and breadcrumb.',
+    defaults: function(){
+      return {
+        eyebrow: 'Products › Rim Seals',
+        title1: 'Rim Seal',
+        title2: 'Systems',
+        desc: 'A complete range of primary and secondary rim seals for external floating roof tanks.',
+        breadcrumb: [
+          { label: 'Home', slug: 'home' },
+          { label: 'Products', slug: 'products' },
+          { label: 'Rim Seals', slug: '' }
+        ]
+      };
+    },
+    render: function(data){
+      var crumbHtml = (data.breadcrumb || []).map(function(c, i, arr){
+        if (i === arr.length - 1) {
+          return '<span class="cur">' + beEscape(c.label) + '</span>';
+        }
+        var sep = '<span class="sep">›</span>';
+        var link = c.slug ? '<a href="javascript:void(0)" onclick="showPage(\'' + beEscape(c.slug) + '\');return false;">' + beEscape(c.label) + '</a>' : beEscape(c.label);
+        return link + sep;
+      }).join('');
+      return (
+        '<div class="page-hero">' +
+          '<div class="ph-grid"></div>' +
+          '<div class="ph-glow"></div>' +
+          '<div class="ph-inner">' +
+            '<div class="ph-eyebrow">' + beEscape(data.eyebrow || '') + '</div>' +
+            '<h1>' + beEscape(data.title1 || '') + ' <em>' + beEscape(data.title2 || '') + '</em></h1>' +
+            '<p class="ph-desc">' + beEscape(data.desc || '') + '</p>' +
+            '<div class="breadcrumb">' + crumbHtml + '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      var field = function(lbl, key, val, type){
+        type = type || 'text';
+        return (
+          '<div style="margin-bottom:.6rem;">' +
+            '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.25rem;">' + lbl + '</label>' +
+            (type === 'textarea'
+              ? '<textarea rows="3" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem;font-size:.85rem;font-family:inherit;" oninput="beUpdateBlockField(\'' + idPrefix + '\',\'' + key + '\',this.value)">' + beEscape(val || '') + '</textarea>'
+              : '<input type="text" value="' + beEscape(val || '') + '" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem;font-size:.85rem;" oninput="beUpdateBlockField(\'' + idPrefix + '\',\'' + key + '\',this.value)"/>'
+            ) +
+          '</div>'
+        );
+      };
+      var crumbRows = (data.breadcrumb || []).map(function(c, i){
+        return (
+          '<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.4rem;margin-bottom:.4rem;align-items:center;">' +
+            '<input type="text" placeholder="Label" value="' + beEscape(c.label || '') + '" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;" oninput="beUpdateCrumb(\'' + idPrefix + '\',' + i + ',\'label\',this.value)"/>' +
+            '<input type="text" placeholder="Target slug (blank = current)" value="' + beEscape(c.slug || '') + '" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;" oninput="beUpdateCrumb(\'' + idPrefix + '\',' + i + ',\'slug\',this.value)"/>' +
+            '<button onclick="beRemoveCrumb(\'' + idPrefix + '\',' + i + ')" title="Remove" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:4px;padding:.3rem .55rem;font-size:.75rem;cursor:pointer;">✕</button>' +
+          '</div>'
+        );
+      }).join('');
+      return (
+        field('Eyebrow text', 'eyebrow', data.eyebrow) +
+        field('Title (first part, bold)', 'title1', data.title1) +
+        field('Title (second part, italic accent)', 'title2', data.title2) +
+        field('Description', 'desc', data.desc, 'textarea') +
+        '<div style="margin-top:.4rem;">' +
+          '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.35rem;">Breadcrumb trail</label>' +
+          crumbRows +
+          '<button onclick="beAddCrumb(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.35rem .65rem;font-size:.75rem;cursor:pointer;">+ Add crumb</button>' +
+        '</div>'
+      );
+    }
+  },
+  'specs': {
+    label: 'Specifications Table',
+    icon: '📋',
+    desc: 'Two-column section: intro and compliance badges on the left, spec table on the right.',
+    defaults: function(){
+      return {
+        label: 'Technical Data',
+        title: 'Specifications',
+        sub: 'All specifications are standard values. Custom configurations available.',
+        badges: ['API 650', 'API MPMS 19.2', 'API 545'],
+        rows: [
+          { param: 'Tank Shell Clearance', value: '12 – 25 mm typical' },
+          { param: 'Operating Temperature', value: '-40°C to +120°C' }
+        ]
+      };
+    },
+    render: function(data){
+      var badgesHtml = (data.badges || []).map(function(b){
+        return '<span class="comp-badge">' + beEscape(b) + '</span>';
+      }).join('');
+      var rowsHtml = (data.rows || []).map(function(r){
+        return '<tr><td>' + beEscape(r.param || '') + '</td><td>' + beEscape(r.value || '') + '</td></tr>';
+      }).join('');
+      return (
+        '<div class="specs-section">' +
+          '<div class="specs-inner">' +
+            '<div class="specs-grid">' +
+              '<div>' +
+                '<div class="section-label">' + beEscape(data.label || '') + '</div>' +
+                '<div class="specs-title">' + beEscape(data.title || '') + '</div>' +
+                '<p class="specs-sub">' + beEscape(data.sub || '') + '</p>' +
+                '<div class="compliance-badges">' + badgesHtml + '</div>' +
+              '</div>' +
+              '<div>' +
+                '<table class="spec-tbl">' +
+                  '<thead><tr><th>Parameter</th><th>Specification</th></tr></thead>' +
+                  '<tbody>' + rowsHtml + '</tbody>' +
+                '</table>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      var field = function(lbl, key, val, type){
+        type = type || 'text';
+        return (
+          '<div style="margin-bottom:.6rem;">' +
+            '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.25rem;">' + lbl + '</label>' +
+            (type === 'textarea'
+              ? '<textarea rows="2" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem;font-size:.85rem;font-family:inherit;" oninput="beUpdateBlockField(\'' + idPrefix + '\',\'' + key + '\',this.value)">' + beEscape(val || '') + '</textarea>'
+              : '<input type="text" value="' + beEscape(val || '') + '" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem;font-size:.85rem;" oninput="beUpdateBlockField(\'' + idPrefix + '\',\'' + key + '\',this.value)"/>'
+            ) +
+          '</div>'
+        );
+      };
+      var badgeRows = (data.badges || []).map(function(b, i){
+        return (
+          '<div style="display:grid;grid-template-columns:1fr auto;gap:.4rem;margin-bottom:.35rem;">' +
+            '<input type="text" value="' + beEscape(b || '') + '" placeholder="e.g. API 650" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;" oninput="beUpdateSpecsBadge(\'' + idPrefix + '\',' + i + ',this.value)"/>' +
+            '<button onclick="beRemoveSpecsBadge(\'' + idPrefix + '\',' + i + ')" title="Remove" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:4px;padding:.3rem .55rem;font-size:.75rem;cursor:pointer;">✕</button>' +
+          '</div>'
+        );
+      }).join('');
+      var specRows = (data.rows || []).map(function(r, i){
+        return (
+          '<div style="display:grid;grid-template-columns:1fr 1.5fr auto;gap:.4rem;margin-bottom:.4rem;">' +
+            '<input type="text" placeholder="Parameter" value="' + beEscape(r.param || '') + '" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;" oninput="beUpdateSpecsRow(\'' + idPrefix + '\',' + i + ',\'param\',this.value)"/>' +
+            '<input type="text" placeholder="Value" value="' + beEscape(r.value || '') + '" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;" oninput="beUpdateSpecsRow(\'' + idPrefix + '\',' + i + ',\'value\',this.value)"/>' +
+            '<button onclick="beRemoveSpecsRow(\'' + idPrefix + '\',' + i + ')" title="Remove" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:4px;padding:.3rem .55rem;font-size:.75rem;cursor:pointer;">✕</button>' +
+          '</div>'
+        );
+      }).join('');
+      return (
+        field('Section label (small, above title)', 'label', data.label) +
+        field('Title', 'title', data.title) +
+        field('Subtitle', 'sub', data.sub, 'textarea') +
+        '<div style="margin:.8rem 0 .5rem;">' +
+          '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.35rem;">Compliance badges</label>' +
+          badgeRows +
+          '<button onclick="beAddSpecsBadge(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.35rem .65rem;font-size:.75rem;cursor:pointer;">+ Add badge</button>' +
+        '</div>' +
+        '<div style="margin-top:.8rem;">' +
+          '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.35rem;">Spec table rows</label>' +
+          specRows +
+          '<button onclick="beAddSpecsRow(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.35rem .65rem;font-size:.75rem;cursor:pointer;">+ Add row</button>' +
+        '</div>'
+      );
+    }
+  },
+  'cta-box': {
+    label: 'CTA Box',
+    icon: '🎯',
+    desc: 'Dark rounded call-to-action box with heading, description and two buttons.',
+    defaults: function(){
+      return {
+        heading: 'Request a Technical Quotation',
+        body: 'Provide your tank dimensions and our engineers will recommend the optimal configuration.',
+        btn_primary_label: 'Contact Our Engineers →',
+        btn_primary_target: 'contact',
+        btn_outline_label: 'Calculate Emissions',
+        btn_outline_url: 'http://www.tankprotocol.com'
+      };
+    },
+    render: function(data){
+      var primaryBtn = data.btn_primary_label
+        ? '<a href="javascript:void(0)" onclick="showPage(\'' + beEscape(data.btn_primary_target || 'contact') + '\');return false;" class="btn-primary">' + beEscape(data.btn_primary_label) + '</a>'
+        : '';
+      var outlineBtn = data.btn_outline_label
+        ? '<a href="' + beEscape(data.btn_outline_url || '#') + '" class="btn-outline" style="border-color:rgba(232,160,32,.4);color:var(--accent)">' + beEscape(data.btn_outline_label) + '</a>'
+        : '';
+      return (
+        '<div class="cta-box">' +
+          '<div class="cta-box-inner">' +
+            '<h3>' + beEscape(data.heading || '') + '</h3>' +
+            '<p>' + beEscape(data.body || '') + '</p>' +
+            '<div class="cta-btns">' + primaryBtn + outlineBtn + '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      var field = function(lbl, key, val, type){
+        type = type || 'text';
+        return (
+          '<div style="margin-bottom:.6rem;">' +
+            '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.25rem;">' + lbl + '</label>' +
+            (type === 'textarea'
+              ? '<textarea rows="3" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem;font-size:.85rem;font-family:inherit;" oninput="beUpdateBlockField(\'' + idPrefix + '\',\'' + key + '\',this.value)">' + beEscape(val || '') + '</textarea>'
+              : '<input type="text" value="' + beEscape(val || '') + '" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem;font-size:.85rem;" oninput="beUpdateBlockField(\'' + idPrefix + '\',\'' + key + '\',this.value)"/>'
+            ) +
+          '</div>'
+        );
+      };
+      return (
+        field('Heading', 'heading', data.heading) +
+        field('Body text', 'body', data.body, 'textarea') +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
+          field('Primary button label', 'btn_primary_label', data.btn_primary_label) +
+          field('Primary button target page', 'btn_primary_target', data.btn_primary_target) +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
+          field('Outline button label', 'btn_outline_label', data.btn_outline_label) +
+          field('Outline button URL', 'btn_outline_url', data.btn_outline_url) +
+        '</div>' +
+        '<div style="font-size:.7rem;color:#8899aa;line-height:1.5;">Leave a button label blank to hide that button.</div>'
+      );
+    }
+  },
+  'footer': {
+    label: 'Site Footer',
+    icon: '⬇',
+    desc: 'Standard site footer. Footer link columns and tagline come from Admin → Footer.',
+    defaults: function(){ return {}; },
+    render: function(){
+      var d = cmsGet();
+      var fs = (d && d.footer_section) || {};
+      return (
+        '<footer>' +
+          '<div class="footer-main">' +
+            '<div>' +
+              '<div class="footer-logo">PETRO<span>DEK</span> SYSTEMS</div>' +
+              '<div class="footer-tagline" data-cms="footer_section.tagline">' + beEscape(fs.tagline || fs.tag || '') + '</div>' +
+            '</div>' +
+            '<div class="footer-col">' +
+              '<div class="footer-col-title">Products</div>' +
+              '<ul>' +
+                '<li><a href="javascript:void(0)" onclick="showPage(\'rim-seals\');return false;">Rim Seals</a></li>' +
+                '<li><a href="javascript:void(0)" onclick="showPage(\'mechanical-shoe-seals\');return false;">Mechanical Shoe Seals</a></li>' +
+                '<li><a href="javascript:void(0)" onclick="showPage(\'liquid-mounted-primary-seals\');return false;">Liquid Mounted Seals</a></li>' +
+                '<li><a href="javascript:void(0)" onclick="showPage(\'secondary-seals\');return false;">Secondary Seals</a></li>' +
+                '<li><a href="javascript:void(0)" onclick="showPage(\'seal-fittings\');return false;">Seal Fittings</a></li>' +
+                '<li><a href="javascript:void(0)" onclick="showPage(\'lightning-protection\');return false;">Lightning Protection</a></li>' +
+              '</ul>' +
+            '</div>' +
+            '<div class="footer-col">' +
+              '<div class="footer-col-title">ESRAI Group</div>' +
+              '<ul>' +
+                '<li><a href="javascript:void(0)" onclick="showPage(\'about\');return false;">About ESRAI GROUP</a></li>' +
+                '<li><a href="javascript:void(0)" onclick="showPage(\'blog\');return false;">Blog</a></li>' +
+                '<li><a href="javascript:void(0)" onclick="showPage(\'contact\');return false;">Contact Us</a></li>' +
+                '<li><a href="http://www.astspares.com" target="_blank">Buy Spares</a></li>' +
+                '<li><a href="http://www.tankprotocol.com" target="_blank">Tank Protocol</a></li>' +
+              '</ul>' +
+            '</div>' +
+            '<div class="footer-col">' +
+              '<div class="footer-col-title">Connect</div>' +
+              '<ul>' +
+                '<li><a href="' + beEscape(fs.fb || 'https://facebook.com') + '" target="_blank">Facebook</a></li>' +
+                '<li><a href="' + beEscape(fs.tw || 'https://twitter.com') + '" target="_blank">Twitter / X</a></li>' +
+                '<li><a href="' + beEscape(fs.yt || 'https://youtube.com') + '" target="_blank">YouTube</a></li>' +
+                '<li><a href="' + beEscape(fs.ig || 'https://instagram.com') + '" target="_blank">Instagram</a></li>' +
+              '</ul>' +
+            '</div>' +
+          '</div>' +
+          '<div class="footer-bottom">' +
+            '<div class="footer-copy" data-cms="footer_section.copy">' + beEscape(fs.copy || '© 2026 Petrodek Systems · All Rights Reserved · An ESRAI GROUP Enterprise') + '</div>' +
+          '</div>' +
+        '</footer>'
+      );
+    },
+    edit: function(){
+      return (
+        '<div style="font-size:.76rem;color:#6677aa;line-height:1.6;">' +
+          'The footer content is edited in <strong>Admin → Footer</strong> — tagline, copyright line, and social links. ' +
+          'This block just tells the page where to place the footer.' +
+        '</div>'
+      );
+    }
+  }
+};
+
+// ════════════════════════════════════════════════════════════════════
+//  BLOCK EDITOR STATE & HELPERS
+// ════════════════════════════════════════════════════════════════════
+var _beCurrentSlug = null;    // slug of the page currently being edited
+var _beDraft = null;          // in-progress draft (array of blocks). Null = no dirty edits.
+var _beOrigSnapshot = null;   // JSON snapshot of original, for revert
+
+function beEscape(s){
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function beNewBlockId(){
+  return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function beCreateBlock(type){
+  var spec = BLOCK_TYPES[type];
+  if (!spec) { console.error('Unknown block type:', type); return null; }
+  return { id: beNewBlockId(), type: type, data: spec.defaults() };
+}
+
+// Return the page object from cmsGet().pages matching slug, or null.
+function beFindPage(slug){
+  var d = cmsGet();
+  var pages = d.pages || [];
+  for (var i = 0; i < pages.length; i++){
+    if (pages[i] && pages[i].slug === slug) return pages[i];
+  }
+  return null;
+}
+
+function beSetPage(slug, pageObj){
+  var d = cmsGet();
+  if (!d.pages) d.pages = [];
+  var found = -1;
+  for (var i = 0; i < d.pages.length; i++){
+    if (d.pages[i] && d.pages[i].slug === slug) { found = i; break; }
+  }
+  if (found >= 0) d.pages[found] = pageObj; else d.pages.push(pageObj);
+  cmsSet(d);
+}
+
+// Render an entire page (ordered blocks) to HTML. This is what
+// showPage uses when a slug has block-editor data.
+function beRenderPage(blocks){
+  if (!Array.isArray(blocks)) return '';
+  return blocks.map(function(b){
+    var spec = BLOCK_TYPES[b.type];
+    if (!spec) return '<!-- unknown block type: ' + beEscape(b.type) + ' -->';
+    try { return spec.render(b.data || {}); }
+    catch(err){ console.error('Block render failed:', b.type, err); return '<!-- render failed: ' + beEscape(b.type) + ' -->'; }
+  }).join('\n');
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  BLOCK EDITOR UI
+// ════════════════════════════════════════════════════════════════════
+function initBlockEditor(){
+  // Populate page dropdown — only BLOCK_EDITOR_SLUGS are editable
+  var sel = document.getElementById('be-page');
+  if (sel){
+    var titles = {
+      'rim-seals': 'Rim Seals'
+    };
+    sel.innerHTML = '<option value="">— select a page —</option>' +
+      BLOCK_EDITOR_SLUGS.map(function(s){
+        return '<option value="' + s + '">' + (titles[s] || s) + '</option>';
+      }).join('');
+  }
+  // Populate the add-a-block library
+  var lib = document.getElementById('be-library');
+  if (lib){
+    lib.innerHTML = Object.keys(BLOCK_TYPES).map(function(type){
+      var spec = BLOCK_TYPES[type];
+      return (
+        '<button onclick="beAddBlock(\'' + type + '\')" style="text-align:left;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:.7rem .8rem;cursor:pointer;display:flex;align-items:flex-start;gap:.6rem;font-family:inherit;">' +
+          '<div style="font-size:1.4rem;line-height:1;flex-shrink:0;">' + spec.icon + '</div>' +
+          '<div>' +
+            '<div style="font-weight:700;font-size:.85rem;color:#0a1628;">' + beEscape(spec.label) + '</div>' +
+            '<div style="font-size:.72rem;color:#6677aa;margin-top:.2rem;line-height:1.4;">' + beEscape(spec.desc) + '</div>' +
+          '</div>' +
+        '</button>'
+      );
+    }).join('');
+  }
+  // Restore previously-selected page (for re-entries to admin)
+  if (_beCurrentSlug && sel){
+    sel.value = _beCurrentSlug;
+    beLoadPage(_beCurrentSlug);
+  }
+}
+
+function beLoadPage(slug){
+  _beCurrentSlug = slug || null;
+  _beDraft = null;
+  _beOrigSnapshot = null;
+  var blocksEl = document.getElementById('be-blocks');
+  var previewPh = document.getElementById('be-preview-ph');
+  var previewIframe = document.getElementById('be-preview-iframe');
+  if (!slug){
+    if (blocksEl) blocksEl.innerHTML = '<div style="text-align:center;padding:2.5rem 1rem;color:#aabbc8;font-size:.84rem;">Select a page above to start editing.</div>';
+    if (previewPh) previewPh.style.display = 'flex';
+    if (previewIframe) previewIframe.style.display = 'none';
+    beSetStatus('');
+    return;
+  }
+  var existing = beFindPage(slug);
+  if (!existing){
+    // Seed rim-seals with a minimal hero block so admin has something to see
+    _beDraft = [ beCreateBlock('hero-page') ];
+  } else {
+    _beDraft = JSON.parse(JSON.stringify(existing.blocks || []));
+  }
+  _beOrigSnapshot = JSON.stringify(_beDraft);
+  beRenderBlockList();
+  beRenderPreview();
+  beSetStatus('Loaded. Changes are held as a draft until you click Save.', 'info');
+}
+
+function beSetStatus(msg, kind){
+  var el = document.getElementById('be-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  var color = '#6677aa';
+  if (kind === 'ok') color = '#16a34a';
+  else if (kind === 'warn') color = '#c97a00';
+  else if (kind === 'err') color = '#c0392b';
+  el.style.color = color;
+}
+
+function beRenderBlockList(){
+  var el = document.getElementById('be-blocks');
+  if (!el) return;
+  if (!_beDraft || !_beDraft.length){
+    el.innerHTML = '<div style="text-align:center;padding:2.5rem 1rem;color:#aabbc8;font-size:.84rem;">No blocks yet. Click a block type on the right to add one.</div>';
+    return;
+  }
+  el.innerHTML = _beDraft.map(function(b, i){
+    var spec = BLOCK_TYPES[b.type];
+    if (!spec){
+      return '<div style="border:1px solid #e0c0c0;border-radius:8px;padding:.7rem;background:#fff5f5;margin-bottom:.6rem;color:#833;font-size:.8rem;">Unknown block type: ' + beEscape(b.type) + ' <button onclick="beDeleteBlock(\'' + b.id + '\')" style="margin-left:.5rem;background:#f0f4f8;border:1px solid #dde4ed;border-radius:4px;padding:.2rem .5rem;font-size:.72rem;cursor:pointer;">Delete</button></div>';
+    }
+    var editHtml = '';
+    try { editHtml = spec.edit(b.data || {}, b.id); }
+    catch(err){ editHtml = '<div style="color:#c0392b;font-size:.75rem;">Editor failed: ' + beEscape(err.message) + '</div>'; }
+    var isOpen = b._editorOpen !== false; // default open
+    return (
+      '<div style="border:1px solid #dde4ed;border-radius:8px;background:#fff;margin-bottom:.7rem;overflow:hidden;">' +
+        '<div style="display:flex;align-items:center;gap:.5rem;padding:.65rem .8rem;background:#f8fafc;border-bottom:1px solid #eef2f7;">' +
+          '<span style="font-size:1.1rem;line-height:1;">' + spec.icon + '</span>' +
+          '<div style="font-weight:700;font-size:.85rem;color:#0a1628;">' + beEscape(spec.label) + '</div>' +
+          '<div style="margin-left:auto;display:flex;gap:.3rem;">' +
+            '<button title="Move up" onclick="beMoveBlock(\'' + b.id + '\',-1)" ' + (i === 0 ? 'disabled' : '') + ' style="background:#fff;border:1px solid #dde4ed;border-radius:4px;padding:.25rem .5rem;font-size:.75rem;cursor:pointer;' + (i === 0 ? 'opacity:.4;cursor:not-allowed;' : '') + '">↑</button>' +
+            '<button title="Move down" onclick="beMoveBlock(\'' + b.id + '\',1)" ' + (i === _beDraft.length - 1 ? 'disabled' : '') + ' style="background:#fff;border:1px solid #dde4ed;border-radius:4px;padding:.25rem .5rem;font-size:.75rem;cursor:pointer;' + (i === _beDraft.length - 1 ? 'opacity:.4;cursor:not-allowed;' : '') + '">↓</button>' +
+            '<button title="Duplicate" onclick="beDuplicateBlock(\'' + b.id + '\')" style="background:#fff;border:1px solid #dde4ed;border-radius:4px;padding:.25rem .5rem;font-size:.75rem;cursor:pointer;">⎘</button>' +
+            '<button title="Delete" onclick="beDeleteBlock(\'' + b.id + '\')" style="background:#fff;border:1px solid #f0c0c0;color:#c0392b;border-radius:4px;padding:.25rem .5rem;font-size:.75rem;cursor:pointer;">🗑</button>' +
+            '<button title="Collapse" onclick="beToggleBlock(\'' + b.id + '\')" style="background:#fff;border:1px solid #dde4ed;border-radius:4px;padding:.25rem .5rem;font-size:.75rem;cursor:pointer;">' + (isOpen ? '▾' : '▸') + '</button>' +
+          '</div>' +
+        '</div>' +
+        (isOpen ? '<div style="padding:.7rem .8rem;">' + editHtml + '</div>' : '') +
+      '</div>'
+    );
+  }).join('');
+}
+
+// Re-render only the preview iframe to reflect current draft state.
+function beRenderPreview(){
+  var iframe = document.getElementById('be-preview-iframe');
+  var ph = document.getElementById('be-preview-ph');
+  if (!iframe || !ph) return;
+  if (!_beDraft){
+    ph.style.display = 'flex';
+    iframe.style.display = 'none';
+    return;
+  }
+  var html = beRenderPage(_beDraft);
+  // Inject the site's <style> into the preview so blocks are styled correctly.
+  var st = document.querySelector('style');
+  var themeStyle = document.getElementById('cms-theme');
+  var doc =
+    '<!DOCTYPE html><html><head><meta charset="utf-8"/>' +
+    (st ? st.outerHTML : '') +
+    (themeStyle ? themeStyle.outerHTML : '') +
+    '</head><body style="margin:0;">' + html + '</body></html>';
+  iframe.srcdoc = doc;
+  iframe.style.display = 'block';
+  ph.style.display = 'none';
+}
+
+function beFindBlockIndex(blockId){
+  if (!_beDraft) return -1;
+  for (var i = 0; i < _beDraft.length; i++){
+    if (_beDraft[i].id === blockId) return i;
+  }
+  return -1;
+}
+
+function beAddBlock(type){
+  if (!_beCurrentSlug){
+    beSetStatus('Pick a page from the dropdown first.', 'warn');
+    return;
+  }
+  if (!_beDraft) _beDraft = [];
+  var nb = beCreateBlock(type);
+  if (!nb) return;
+  _beDraft.push(nb);
+  beRenderBlockList();
+  beRenderPreview();
+  beSetStatus('Block added. Unsaved changes — click Save to persist.', 'warn');
+}
+
+function beDeleteBlock(blockId){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  if (!confirm('Delete this block?')) return;
+  _beDraft.splice(i, 1);
+  beRenderBlockList();
+  beRenderPreview();
+  beSetStatus('Block deleted. Unsaved changes.', 'warn');
+}
+
+function beDuplicateBlock(blockId){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var copy = JSON.parse(JSON.stringify(_beDraft[i]));
+  copy.id = beNewBlockId();
+  _beDraft.splice(i + 1, 0, copy);
+  beRenderBlockList();
+  beRenderPreview();
+  beSetStatus('Block duplicated. Unsaved changes.', 'warn');
+}
+
+function beMoveBlock(blockId, delta){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var j = i + delta;
+  if (j < 0 || j >= _beDraft.length) return;
+  var tmp = _beDraft[i]; _beDraft[i] = _beDraft[j]; _beDraft[j] = tmp;
+  beRenderBlockList();
+  beRenderPreview();
+  beSetStatus('Block moved. Unsaved changes.', 'warn');
+}
+
+function beToggleBlock(blockId){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  _beDraft[i]._editorOpen = _beDraft[i]._editorOpen === false; // toggle
+  beRenderBlockList();
+}
+
+// Called from inline oninput handlers. Updates a single field on the
+// block's data, re-renders preview but NOT the block list (to avoid
+// stealing focus while the admin is typing).
+function beUpdateBlockField(blockId, key, value){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  if (!_beDraft[i].data) _beDraft[i].data = {};
+  _beDraft[i].data[key] = value;
+  beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+
+// Breadcrumb helpers for hero-page blocks
+function beUpdateCrumb(blockId, idx, key, value){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (!Array.isArray(d.breadcrumb)) d.breadcrumb = [];
+  if (!d.breadcrumb[idx]) d.breadcrumb[idx] = {};
+  d.breadcrumb[idx][key] = value;
+  _beDraft[i].data = d;
+  beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+function beAddCrumb(blockId){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (!Array.isArray(d.breadcrumb)) d.breadcrumb = [];
+  d.breadcrumb.push({ label: 'New', slug: '' });
+  _beDraft[i].data = d;
+  beRenderBlockList(); beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+function beRemoveCrumb(blockId, idx){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (Array.isArray(d.breadcrumb)) d.breadcrumb.splice(idx, 1);
+  _beDraft[i].data = d;
+  beRenderBlockList(); beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+
+// Specs helpers
+function beUpdateSpecsBadge(blockId, idx, value){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (!Array.isArray(d.badges)) d.badges = [];
+  d.badges[idx] = value;
+  _beDraft[i].data = d;
+  beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+function beAddSpecsBadge(blockId){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (!Array.isArray(d.badges)) d.badges = [];
+  d.badges.push('New badge');
+  _beDraft[i].data = d;
+  beRenderBlockList(); beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+function beRemoveSpecsBadge(blockId, idx){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (Array.isArray(d.badges)) d.badges.splice(idx, 1);
+  _beDraft[i].data = d;
+  beRenderBlockList(); beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+function beUpdateSpecsRow(blockId, idx, key, value){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (!Array.isArray(d.rows)) d.rows = [];
+  if (!d.rows[idx]) d.rows[idx] = {};
+  d.rows[idx][key] = value;
+  _beDraft[i].data = d;
+  beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+function beAddSpecsRow(blockId){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (!Array.isArray(d.rows)) d.rows = [];
+  d.rows.push({ param: 'Parameter', value: 'Value' });
+  _beDraft[i].data = d;
+  beRenderBlockList(); beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+function beRemoveSpecsRow(blockId, idx){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (Array.isArray(d.rows)) d.rows.splice(idx, 1);
+  _beDraft[i].data = d;
+  beRenderBlockList(); beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+
+// Save the draft to CMS. Fires server save via cmsSet.
+function beSavePage(){
+  if (!_beCurrentSlug){ beSetStatus('Pick a page first.', 'warn'); return; }
+  if (!_beDraft){ beSetStatus('Nothing to save.', 'warn'); return; }
+  // Strip the _editorOpen UI-state flag from saved blocks
+  var cleanBlocks = _beDraft.map(function(b){
+    var copy = { id: b.id, type: b.type, data: b.data };
+    return copy;
+  });
+  var existing = beFindPage(_beCurrentSlug);
+  var pageObj = existing ? Object.assign({}, existing) : { slug: _beCurrentSlug };
+  if (!pageObj.title) pageObj.title = _beCurrentSlug.replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); }) + ' — PETRODEK SYSTEMS';
+  if (!pageObj.status) pageObj.status = 'published';
+  pageObj.blocks = cleanBlocks;
+  beSetPage(_beCurrentSlug, pageObj);
+  _beOrigSnapshot = JSON.stringify(_beDraft);
+  beSetStatus('Saving…', 'warn');
+  _cmsOnSaveOk = function(){
+    beSetStatus('Saved live ✓', 'ok');
+    if (typeof showToast === 'function') showToast('Page saved — changes live for all visitors');
+    _cmsOnSaveOk = null; _cmsOnSaveError = null;
+  };
+  _cmsOnSaveError = function(err){
+    beSetStatus('Save failed — retry or reload', 'err');
+    if (typeof showToast === 'function') showToast('Server save failed: ' + (err && err.message ? err.message : err), 'bad');
+    _cmsOnSaveOk = null; _cmsOnSaveError = null;
+  };
+}
+
+function beRevert(){
+  if (!_beCurrentSlug){ beSetStatus('Pick a page first.', 'warn'); return; }
+  if (_beOrigSnapshot === null){ beSetStatus('Nothing to revert.', 'info'); return; }
+  if (!confirm('Discard all unsaved changes and revert to the last saved state?')) return;
+  _beDraft = JSON.parse(_beOrigSnapshot);
+  beRenderBlockList();
+  beRenderPreview();
+  beSetStatus('Reverted to last saved state.', 'info');
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  END BLOCK EDITOR
+// ════════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════
+//  LEGACY CODE BELOW — was the old "Page Builder" (row/column/widget
+//  drag-drop). The Page Builder admin section now uses the Block
+//  Editor above instead. These functions are left in place only
+//  because removing ~1,600 lines of untested legacy code in a single
+//  edit is risky. They're unreachable from the UI — nothing calls
+//  initPageBuilder / pbAddRow / savePageLayout etc. any more. Safe
+//  to delete in a future cleanup pass.
+// ════════════════════════════════════════════════════════════════════
 
 function initPageBuilder() {
   var sel = document.getElementById('pb-target');
@@ -2814,28 +3590,36 @@ function adminSectionHTML(sec) {
   }
 
   /* ══════════════════════════════════════════════════════
-     PAGE BUILDER
+     BLOCK EDITOR (formerly "Page Builder")
+     Builds pages out of typed blocks. Proof-of-concept on
+     rim-seals; other pages still use the old hardcoded HTML.
   ══════════════════════════════════════════════════════ */
   if (sec === 'page-builder') {
-    return '<div style="max-width:1140px;display:grid;grid-template-columns:1fr 340px;gap:1rem;align-items:start;">' +
-      W('Page Layout Builder',
-        '<div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">' +
-          '<select id="pb-target" onchange="pbLoadPage(this.value)" style="border:1px solid #dde4ed;border-radius:6px;padding:.45rem .8rem;font-size:.84rem;flex:1;min-width:200px;color:#1a2535;"></select>' +
-          btn('+ 1 Column','pbAddRow(1)') + btn('+ 2 Columns','pbAddRow(2)') + btn('+ 3 Columns','pbAddRow(3)') +
-          btn('💾 Save Layout','savePageLayout()',true) + btn('🗑 Clear','pbClear()') +
+    return '<div style="max-width:1200px;display:grid;grid-template-columns:1fr 360px;gap:1rem;align-items:start;">' +
+      W('Block Editor',
+        '<div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:.9rem;">' +
+          '<label style="font-size:.72rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;">Page:</label>' +
+          '<select id="be-page" onchange="beLoadPage(this.value)" style="border:1px solid #dde4ed;border-radius:6px;padding:.45rem .8rem;font-size:.84rem;flex:1;min-width:200px;color:#1a2535;"></select>' +
+          btn('💾 Save','beSavePage()', true) +
+          btn('↺ Revert','beRevert()') +
         '</div>' +
-        '<div style="font-size:.72rem;color:#8899aa;margin-bottom:.8rem;">Add rows, then drag widgets from the library below into each column.</div>' +
-        '<div id="pb-canvas" style="min-height:140px;border:2px dashed #dde4ed;border-radius:8px;padding:.8rem;background:#f8fafc;">' +
-          '<div class="pb-empty" style="text-align:center;padding:2rem;color:#aabbc8;font-size:.84rem;">No layout yet. Add rows above to start building.</div>' +
+        '<div id="be-status" style="font-size:.72rem;color:#6677aa;min-height:1rem;margin-bottom:.6rem;"></div>' +
+        '<div style="background:#fff8ee;border:1px solid #f3d98d;border-left:3px solid #e8a020;border-radius:0 6px 6px 0;padding:.65rem .9rem;font-size:.76rem;color:#5a4520;line-height:1.55;margin-bottom:1rem;">' +
+          '<strong>Proof of concept:</strong> block editing is currently enabled for <strong>Rim Seals</strong> only. Other pages still use the built-in template until they\'re migrated. Each saved page overrides the built-in template for that slug.' +
+        '</div>' +
+        '<div id="be-blocks" style="min-height:160px;border:2px dashed #dde4ed;border-radius:8px;padding:.8rem;background:#f8fafc;">' +
+          '<div style="text-align:center;padding:2.5rem 1rem;color:#aabbc8;font-size:.84rem;">Select a page above to start editing.</div>' +
         '</div>') +
-      W('Widget Drag Library', '<div id="pb-widget-lib" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.5rem;"></div>') +
+      W('Add a Block', '<div id="be-library" style="display:flex;flex-direction:column;gap:.5rem;"></div>') +
     '</div>' +
     '<div style="position:sticky;top:0;">' +
-      W('Page Preview',
-        '<p style="font-size:.74rem;color:#6677aa;margin-bottom:.6rem;">Live preview of selected page at 70% scale.</p>' +
-        '<div id="pb-preview-wrap" style="border:1px solid #dde4ed;border-radius:8px;overflow:hidden;background:#f8fafc;min-height:300px;">' +
-          '<div id="pb-preview-ph" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;color:#aabbc8;font-size:.8rem;text-align:center;padding:2rem;"><div style="font-size:2rem;margin-bottom:.5rem;">&#128196;</div>Select a page above</div>' +
-          '<div style="transform:scale(0.7);transform-origin:top left;width:143%;position:relative;"><iframe id="pb-preview-iframe" style="width:100%;height:700px;border:none;display:none;" scrolling="yes"></iframe></div>' +
+      W('Live Preview',
+        '<p style="font-size:.74rem;color:#6677aa;margin-bottom:.6rem;">Live preview of the page as blocks are arranged.</p>' +
+        '<div style="border:1px solid #dde4ed;border-radius:8px;overflow:hidden;background:#f8fafc;min-height:400px;">' +
+          '<div id="be-preview-ph" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;color:#aabbc8;font-size:.8rem;text-align:center;padding:2rem;"><div style="font-size:2rem;margin-bottom:.5rem;">📐</div>Select a page to preview</div>' +
+          '<div style="transform:scale(0.58);transform-origin:top left;width:172%;">' +
+            '<iframe id="be-preview-iframe" style="width:100%;height:900px;border:none;display:none;background:#fff;" scrolling="yes"></iframe>' +
+          '</div>' +
         '</div>') +
     '</div>';
   }
@@ -4064,6 +4848,34 @@ function loadProdBlogList(key, d, prodData){
 'use strict';
 window.showPage=function(id,push){
   if(push===undefined)push=true;
+  // Block-editor override: if a page exists in cmsGet().pages with a non-empty
+  // blocks[] array AND it matches this slug AND this slug is on the opt-in
+  // allow-list, render from blocks instead of the hardcoded PAGES template.
+  // This keeps all unchanged pages on their old rendering path.
+  var blockPage = null;
+  try {
+    if (typeof BLOCK_EDITOR_SLUGS !== 'undefined' && BLOCK_EDITOR_SLUGS.indexOf(id) >= 0) {
+      var cms = (typeof cmsGet === 'function') ? cmsGet() : null;
+      var pages = (cms && cms.pages) ? cms.pages : [];
+      for (var i = 0; i < pages.length; i++) {
+        if (pages[i] && pages[i].slug === id && Array.isArray(pages[i].blocks) && pages[i].blocks.length) {
+          blockPage = pages[i];
+          break;
+        }
+      }
+    }
+  } catch(e) { console.warn('Block page lookup failed:', e); }
+
+  if (blockPage && typeof beRenderPage === 'function') {
+    document.title = blockPage.title || id;
+    var html = beRenderPage(blockPage.blocks);
+    document.getElementById('app').innerHTML = html;
+    window.scrollTo(0,0);
+    if(push){try{history.pushState({page:id}, document.title, id==='home'?'./':'#'+id);}catch(e){}}
+    afterRender(id);
+    return;
+  }
+
   if(!PAGES[id])id='home';
   var p=PAGES[id];
   document.title=p.title;
