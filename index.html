@@ -2571,6 +2571,262 @@ var BLOCK_TYPES = {
       );
     }
   },
+  'section-header': {
+    label: 'Section Header',
+    icon: '📐',
+    desc: 'Small eyebrow label, bold title, and accent bar. Use above a grid or row of cards.',
+    defaults: function(){
+      return {
+        label: 'What We Offer',
+        title: 'Section Title',
+        align: 'center'
+      };
+    },
+    render: function(data){
+      var alignStyle = (data.align === 'left') ? 'text-align:left;'
+                     : (data.align === 'right') ? 'text-align:right;'
+                     : ''; // center is the default from .section-hd
+      return (
+        '<div style="max-width:1200px;margin:0 auto;padding:70px 5% 0;">' +
+          '<div class="section-hd"' + (alignStyle ? ' style="' + alignStyle + '"' : '') + '>' +
+            '<span class="slbl">' + beEscape(data.label || '') + '</span>' +
+            '<h2>' + beEscape(data.title || '') + '</h2>' +
+            '<div class="bar"' + (data.align === 'center' || !data.align ? '' : ' style="margin-left:0;"') + '></div>' +
+          '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      return (
+        beField(idPrefix, 'Eyebrow label', 'label', data.label, {placeholder:'e.g. What We Offer'}) +
+        beField(idPrefix, 'Heading', 'title', data.title, {placeholder:'e.g. Our Solutions'}) +
+        beField(idPrefix, 'Alignment', 'align', data.align || 'center', {
+          type: 'select',
+          options: [
+            {value:'center', label:'Center (default)'},
+            {value:'left', label:'Left'}
+          ]
+        })
+      );
+    }
+  },
+
+  'related-grid': {
+    label: 'Related Products Grid',
+    icon: '🔲',
+    desc: 'Grid of product cards with icon, tag, title, description and link. Each card points to another page.',
+    defaults: function(){
+      return {
+        cards: [
+          { icon:'🧩', tag:'Primary Seal', title:'Mechanical Shoe Seals', desc:'Metallic shoe plate maintains continuous shell contact.', target:'mechanical-shoe-seals' },
+          { icon:'💧', tag:'Primary Seal', title:'Liquid Mounted Primary', desc:'Foam-filled seals floating on the product surface.', target:'liquid-mounted-primary-seals' },
+          { icon:'⌬', tag:'Primary Seal', title:'Vapour Mounted Primary', desc:'Above-product mounted seals for cost-effective primary sealing.', target:'vapour-mounted-primary-seals' }
+        ]
+      };
+    },
+    render: function(data){
+      var cards = (data.cards || []).map(function(c){
+        var clickTarget = c.target
+          ? 'onclick="showPage(\'' + beEscape(c.target) + '\');return false;"'
+          : '';
+        return (
+          '<a href="javascript:void(0)" ' + clickTarget + ' class="rel-card">' +
+            '<div class="rel-card-img" style="font-size:3rem">' + beEscape(c.icon || '') + '</div>' +
+            '<div class="rel-card-body">' +
+              '<div class="rel-card-tag">' + beEscape(c.tag || '') + '</div>' +
+              '<h4>' + beEscape(c.title || '') + '</h4>' +
+              '<p>' + beEscape(c.desc || '') + '</p>' +
+              (c.target ? '<span class="rel-card-link">View Product →</span>' : '') +
+            '</div>' +
+          '</a>'
+        );
+      }).join('');
+      return (
+        '<div style="max-width:1200px;margin:0 auto;padding:0 5% 70px;">' +
+          '<div class="related-grid" style="margin-top:2.5rem">' + cards + '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      var cardRows = (data.cards || []).map(function(c, i){
+        return (
+          '<div style="border:1px solid #e8eef5;border-radius:6px;padding:.6rem .7rem;margin-bottom:.5rem;background:#f8fafc;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">' +
+              '<div style="font-size:.75rem;font-weight:700;color:#6677aa;">Card ' + (i + 1) + '</div>' +
+              '<button onclick="beRemoveRelatedCard(\'' + idPrefix + '\',' + i + ')" title="Remove card" style="background:#fff;border:1px solid #f0c0c0;color:#c0392b;border-radius:4px;padding:.2rem .5rem;font-size:.72rem;cursor:pointer;">✕</button>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:.4rem;margin-bottom:.4rem;">' +
+              '<input type="text" placeholder="Icon" value="' + beEscape(c.icon || '') + '" title="Emoji or symbol" oninput="beUpdateRelatedCard(\'' + idPrefix + '\',' + i + ',\'icon\',this.value)" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.85rem;text-align:center;"/>' +
+              '<input type="text" placeholder="Tag (e.g. Primary Seal)" value="' + beEscape(c.tag || '') + '" oninput="beUpdateRelatedCard(\'' + idPrefix + '\',' + i + ',\'tag\',this.value)" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;"/>' +
+              '<input type="text" placeholder="Target slug" value="' + beEscape(c.target || '') + '" oninput="beUpdateRelatedCard(\'' + idPrefix + '\',' + i + ',\'target\',this.value)" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;"/>' +
+            '</div>' +
+            '<input type="text" placeholder="Title" value="' + beEscape(c.title || '') + '" oninput="beUpdateRelatedCard(\'' + idPrefix + '\',' + i + ',\'title\',this.value)" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.85rem;font-weight:600;margin-bottom:.4rem;"/>' +
+            '<textarea placeholder="Description" rows="2" oninput="beUpdateRelatedCard(\'' + idPrefix + '\',' + i + ',\'desc\',this.value)" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;font-family:inherit;">' + beEscape(c.desc || '') + '</textarea>' +
+          '</div>'
+        );
+      }).join('');
+      return (
+        cardRows +
+        '<button onclick="beAddRelatedCard(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .8rem;font-size:.8rem;cursor:pointer;margin-top:.2rem;">+ Add card</button>'
+      );
+    }
+  },
+
+  'rich-text': {
+    label: 'Rich Text / Prose',
+    icon: '📝',
+    desc: 'Freeform paragraphs. Supports basic HTML — paragraphs, bold, italic, links, lists.',
+    defaults: function(){
+      return {
+        content: '<p>Start typing your content here. You can use basic HTML tags like <strong>bold</strong>, <em>italic</em>, and <a href="javascript:void(0)" onclick="showPage(\'contact\');return false;">page links</a>.</p>',
+        width: 'narrow'
+      };
+    },
+    render: function(data){
+      var maxW = (data.width === 'full') ? '1200px' : (data.width === 'wide') ? '900px' : '720px';
+      return (
+        '<div style="max-width:' + maxW + ';margin:0 auto;padding:50px 5%;font-size:1rem;line-height:1.75;color:var(--text);">' +
+          (data.content || '') +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      return (
+        beField(idPrefix, 'Content (HTML allowed)', 'content', data.content, {
+          type:'textarea',
+          rows:8,
+          placeholder:'<p>Your content with <strong>HTML</strong> tags…</p>'
+        }) +
+        beField(idPrefix, 'Content width', 'width', data.width || 'narrow', {
+          type:'select',
+          options:[
+            {value:'narrow', label:'Narrow (720px — best for reading)'},
+            {value:'wide', label:'Wide (900px)'},
+            {value:'full', label:'Full (1200px)'}
+          ]
+        }) +
+        beInfoBox('<strong>Heads up:</strong> this block trusts the HTML you enter. Only use it yourself — don\'t paste HTML from untrusted sources, and don\'t let site visitors edit this block.')
+      );
+    }
+  },
+
+  'image-text': {
+    label: 'Image + Text',
+    icon: '🖼',
+    desc: 'Two-column layout: image on one side, heading and paragraphs on the other.',
+    defaults: function(){
+      return {
+        image_url: '',
+        image_alt: '',
+        image_side: 'left',
+        eyebrow: '',
+        title: 'Section Title',
+        body: 'Your paragraph text goes here. Describe the product, feature or concept being introduced.'
+      };
+    },
+    render: function(data){
+      var img = data.image_url
+        ? '<img src="' + beEscape(data.image_url) + '" alt="' + beEscape(data.image_alt || '') + '" style="width:100%;height:auto;border-radius:10px;display:block;"/>'
+        : '<div style="background:#f0f4f8;border:2px dashed #cfd8e3;border-radius:10px;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:#aabbc8;font-size:.85rem;">No image yet</div>';
+      var textCol = (
+        '<div>' +
+          (data.eyebrow ? '<div class="slbl" style="color:var(--accent);font-weight:700;font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.6rem;">' + beEscape(data.eyebrow) + '</div>' : '') +
+          '<h2 style="font-size:2rem;font-weight:800;color:var(--text);margin:0 0 1rem;line-height:1.2;">' + beEscape(data.title || '') + '</h2>' +
+          '<p style="font-size:1rem;line-height:1.75;color:var(--text);opacity:.85;">' + beEscape(data.body || '') + '</p>' +
+        '</div>'
+      );
+      var imgCol = '<div>' + img + '</div>';
+      var first = (data.image_side === 'right') ? textCol : imgCol;
+      var second = (data.image_side === 'right') ? imgCol : textCol;
+      return (
+        '<div style="max-width:1200px;margin:0 auto;padding:70px 5%;">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;">' +
+            first + second +
+          '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      return (
+        beField(idPrefix, 'Image URL', 'image_url', data.image_url, {placeholder:'https://… or /images/foo.jpg'}) +
+        beField(idPrefix, 'Image alt text', 'image_alt', data.image_alt, {placeholder:'For screen readers'}) +
+        beField(idPrefix, 'Image position', 'image_side', data.image_side || 'left', {
+          type:'select',
+          options:[
+            {value:'left', label:'Image on the left'},
+            {value:'right', label:'Image on the right'}
+          ]
+        }) +
+        beField(idPrefix, 'Eyebrow (optional)', 'eyebrow', data.eyebrow, {placeholder:'e.g. Product Detail'}) +
+        beField(idPrefix, 'Heading', 'title', data.title) +
+        beField(idPrefix, 'Body text', 'body', data.body, {type:'textarea', rows:5})
+      );
+    }
+  },
+
+  'features-grid': {
+    label: 'Features Grid',
+    icon: '✦',
+    desc: 'Responsive grid of feature cards, each with an icon, title and short description. Great for benefits or capabilities.',
+    defaults: function(){
+      return {
+        columns: 3,
+        items: [
+          { icon:'🛡', title:'API Compliant', desc:'Designed to meet API 650 and MPMS 19.2 requirements.' },
+          { icon:'⚙️', title:'Engineered to Spec', desc:'Custom-sized for your tank diameter and annular clearance.' },
+          { icon:'⚡', title:'Long Service Life', desc:'Rated for 15+ years of continuous operation under typical conditions.' }
+        ]
+      };
+    },
+    render: function(data){
+      var cols = parseInt(data.columns, 10) || 3;
+      if (cols < 1) cols = 1; if (cols > 4) cols = 4;
+      var items = (data.items || []).map(function(it){
+        return (
+          '<div style="background:#fff;border:1px solid #eef2f7;border-radius:10px;padding:1.6rem 1.4rem;transition:transform .2s,box-shadow .2s;">' +
+            '<div style="font-size:2.2rem;margin-bottom:.7rem;line-height:1;">' + beEscape(it.icon || '') + '</div>' +
+            '<h4 style="font-size:1.05rem;font-weight:700;color:var(--text);margin:0 0 .5rem;">' + beEscape(it.title || '') + '</h4>' +
+            '<p style="font-size:.9rem;line-height:1.6;color:var(--text);opacity:.75;margin:0;">' + beEscape(it.desc || '') + '</p>' +
+          '</div>'
+        );
+      }).join('');
+      return (
+        '<div style="max-width:1200px;margin:0 auto;padding:50px 5%;">' +
+          '<div style="display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:1.2rem;">' + items + '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      var itemRows = (data.items || []).map(function(it, i){
+        return (
+          '<div style="border:1px solid #e8eef5;border-radius:6px;padding:.6rem .7rem;margin-bottom:.5rem;background:#f8fafc;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">' +
+              '<div style="font-size:.75rem;font-weight:700;color:#6677aa;">Item ' + (i + 1) + '</div>' +
+              '<button onclick="beRemoveFeature(\'' + idPrefix + '\',' + i + ')" title="Remove" style="background:#fff;border:1px solid #f0c0c0;color:#c0392b;border-radius:4px;padding:.2rem .5rem;font-size:.72rem;cursor:pointer;">✕</button>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:70px 1fr;gap:.4rem;margin-bottom:.4rem;">' +
+              '<input type="text" placeholder="Icon" value="' + beEscape(it.icon || '') + '" oninput="beUpdateFeature(\'' + idPrefix + '\',' + i + ',\'icon\',this.value)" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.85rem;text-align:center;"/>' +
+              '<input type="text" placeholder="Title" value="' + beEscape(it.title || '') + '" oninput="beUpdateFeature(\'' + idPrefix + '\',' + i + ',\'title\',this.value)" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.85rem;font-weight:600;"/>' +
+            '</div>' +
+            '<textarea placeholder="Description" rows="2" oninput="beUpdateFeature(\'' + idPrefix + '\',' + i + ',\'desc\',this.value)" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;font-family:inherit;">' + beEscape(it.desc || '') + '</textarea>' +
+          '</div>'
+        );
+      }).join('');
+      return (
+        beField(idPrefix, 'Columns', 'columns', String(data.columns || 3), {
+          type:'select',
+          options:[
+            {value:'2', label:'2 columns'},
+            {value:'3', label:'3 columns (default)'},
+            {value:'4', label:'4 columns'}
+          ]
+        }) +
+        itemRows +
+        '<button onclick="beAddFeature(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .8rem;font-size:.8rem;cursor:pointer;margin-top:.2rem;">+ Add item</button>'
+      );
+    }
+  },
+
   'footer': {
     label: 'Site Footer',
     icon: '⬇',
@@ -2659,6 +2915,39 @@ function beCreateBlock(type){
   var spec = BLOCK_TYPES[type];
   if (!spec) { console.error('Unknown block type:', type); return null; }
   return { id: beNewBlockId(), type: type, data: spec.defaults() };
+}
+
+// Shared helper: render a labelled field (text / textarea / select) that
+// writes back to the block's data via beUpdateBlockField. Used by every
+// block's edit() function to avoid re-declaring the same boilerplate.
+function beField(idPrefix, lbl, key, val, opts){
+  opts = opts || {};
+  var type = opts.type || 'text';
+  var rows = opts.rows || 2;
+  var placeholder = opts.placeholder || '';
+  var baseStyle = 'width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem;font-size:.85rem;font-family:inherit;';
+  var labelHtml = '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.25rem;">' + beEscape(lbl) + '</label>';
+  var control;
+  if (type === 'textarea') {
+    control = '<textarea rows="' + rows + '" placeholder="' + beEscape(placeholder) + '" style="' + baseStyle + '" oninput="beUpdateBlockField(\'' + idPrefix + '\',\'' + key + '\',this.value)">' + beEscape(val || '') + '</textarea>';
+  } else if (type === 'select') {
+    var options = (opts.options || []).map(function(o){
+      var v = (typeof o === 'string') ? o : o.value;
+      var l = (typeof o === 'string') ? o : o.label;
+      var sel = (v === val) ? ' selected' : '';
+      return '<option value="' + beEscape(v) + '"' + sel + '>' + beEscape(l) + '</option>';
+    }).join('');
+    control = '<select style="' + baseStyle + '" onchange="beUpdateBlockField(\'' + idPrefix + '\',\'' + key + '\',this.value)">' + options + '</select>';
+  } else {
+    control = '<input type="' + type + '" value="' + beEscape(val || '') + '" placeholder="' + beEscape(placeholder) + '" style="' + baseStyle + '" oninput="beUpdateBlockField(\'' + idPrefix + '\',\'' + key + '\',this.value)"/>';
+  }
+  return '<div style="margin-bottom:.6rem;">' + labelHtml + control + '</div>';
+}
+
+// Shared helper: render a labelled info block (for blocks whose content
+// is edited elsewhere in the admin, like nav and footer).
+function beInfoBox(msg){
+  return '<div style="font-size:.76rem;color:#6677aa;line-height:1.6;background:#f8fafc;border:1px solid #eef2f7;border-left:3px solid #dde4ed;border-radius:0 6px 6px 0;padding:.65rem .9rem;">' + msg + '</div>';
 }
 
 // Return the page object from cmsGet().pages matching slug, or null.
@@ -2993,6 +3282,55 @@ function beRemoveSpecsRow(blockId, idx){
   _beDraft[i].data = d;
   beRenderBlockList(); beRenderPreview();
   beSetStatus('Unsaved changes.', 'warn');
+}
+
+// Generic array-mutation helper used by the newer block types.
+// Operates on _beDraft[i].data[arrKey] (a JS array). Callers pass a
+// mutator function that receives the array and mutates it in place.
+// Caller decides whether to re-render the block list (for structural
+// changes like add/remove) or just the preview (for field edits).
+function beMutateBlockArray(blockId, arrKey, mutator, renderList){
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  var d = _beDraft[i].data || {};
+  if (!Array.isArray(d[arrKey])) d[arrKey] = [];
+  mutator(d[arrKey]);
+  _beDraft[i].data = d;
+  if (renderList) beRenderBlockList();
+  beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
+}
+
+// Related-grid helpers
+function beUpdateRelatedCard(blockId, idx, key, value){
+  beMutateBlockArray(blockId, 'cards', function(arr){
+    if (!arr[idx]) arr[idx] = {};
+    arr[idx][key] = value;
+  }, false);
+}
+function beAddRelatedCard(blockId){
+  beMutateBlockArray(blockId, 'cards', function(arr){
+    arr.push({ icon:'⬡', tag:'Tag', title:'New Product', desc:'Description of this product card.', target:'' });
+  }, true);
+}
+function beRemoveRelatedCard(blockId, idx){
+  beMutateBlockArray(blockId, 'cards', function(arr){ arr.splice(idx, 1); }, true);
+}
+
+// Features-grid helpers
+function beUpdateFeature(blockId, idx, key, value){
+  beMutateBlockArray(blockId, 'items', function(arr){
+    if (!arr[idx]) arr[idx] = {};
+    arr[idx][key] = value;
+  }, false);
+}
+function beAddFeature(blockId){
+  beMutateBlockArray(blockId, 'items', function(arr){
+    arr.push({ icon:'✦', title:'New feature', desc:'Short description of this feature.' });
+  }, true);
+}
+function beRemoveFeature(blockId, idx){
+  beMutateBlockArray(blockId, 'items', function(arr){ arr.splice(idx, 1); }, true);
 }
 
 // Save the draft to CMS. Fires server save via cmsSet.
