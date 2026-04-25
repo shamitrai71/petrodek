@@ -1699,12 +1699,14 @@ function _cmsFlushToServer(){
   }).then(function(r){
     if(!r.ok){
       return r.text().then(function(t){
-        throw new Error('save failed (' + r.status + '): ' + t.slice(0,200));
+        var detail = t ? t.slice(0,300) : '(empty body)';
+        throw new Error('HTTP ' + r.status + ' ' + r.statusText + ' — ' + detail);
       });
     }
+    console.info('[cms] saved', snapshot.length, 'bytes to server');
     if(typeof _cmsOnSaveOk==='function') _cmsOnSaveOk();
   }).catch(function(err){
-    console.warn('CMS server save failed:', err);
+    console.warn('[cms] server save failed (' + snapshot.length + ' bytes):', err.message || err);
     if(typeof _cmsOnSaveError==='function') _cmsOnSaveError(err);
   });
   return _cmsSavePending;
@@ -3356,8 +3358,10 @@ function beSavePage(){
     _cmsOnSaveOk = null; _cmsOnSaveError = null;
   };
   _cmsOnSaveError = function(err){
-    beSetStatus('Save failed — retry or reload', 'err');
-    if (typeof showToast === 'function') showToast('Server save failed: ' + (err && err.message ? err.message : err), 'bad');
+    var msg = (err && err.message) ? err.message : String(err);
+    beSetStatus('Save failed — ' + msg, 'err');
+    if (typeof showToast === 'function') showToast('Save failed: ' + msg, 'bad');
+    console.error('[block editor] save failed:', err);
     _cmsOnSaveOk = null; _cmsOnSaveError = null;
   };
 }
