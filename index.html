@@ -2732,19 +2732,30 @@ var BLOCK_TYPES = {
       return {
         label: 'What We Offer',
         title: 'Section Title',
-        align: 'center'
+        align: 'center',
+        bg_preset: 'default',
+        bg_custom: '#f8fafc'
       };
     },
     render: function(data){
       var alignStyle = (data.align === 'left') ? 'text-align:left;'
                      : (data.align === 'right') ? 'text-align:right;'
-                     : ''; // center is the default from .section-hd
+                     : '';
+      var bg = _beBackgroundCSS(data);
+      // When the block has a background, give it real padding so the
+      // colour wraps a visible band rather than a hairline strip.
+      var hasBg = data.bg_preset && data.bg_preset !== 'default';
+      var outerPadding = hasBg ? 'padding:60px 0;' : 'padding:70px 5% 0;';
+      var titleStyle = bg.isDark ? 'color:' + bg.headingColor + ';' : '';
+      var labelStyle = bg.isDark ? 'color:' + bg.eyebrowColor + ';' : '';
       return (
-        '<div style="max-width:1200px;margin:0 auto;padding:70px 5% 0;">' +
-          '<div class="section-hd"' + (alignStyle ? ' style="' + alignStyle + '"' : '') + '>' +
-            '<span class="slbl">' + beEscape(data.label || '') + '</span>' +
-            '<h2>' + beEscape(data.title || '') + '</h2>' +
-            '<div class="bar"' + (data.align === 'center' || !data.align ? '' : ' style="margin-left:0;"') + '></div>' +
+        '<div style="' + bg.wrapStyle + outerPadding + '">' +
+          '<div style="max-width:1200px;margin:0 auto;' + (hasBg ? 'padding:0 5%;' : '') + '">' +
+            '<div class="section-hd"' + (alignStyle ? ' style="' + alignStyle + '"' : '') + '>' +
+              '<span class="slbl"' + (labelStyle ? ' style="' + labelStyle + '"' : '') + '>' + beEscape(data.label || '') + '</span>' +
+              '<h2' + (titleStyle ? ' style="' + titleStyle + '"' : '') + '>' + beEscape(data.title || '') + '</h2>' +
+              '<div class="bar"' + (data.align === 'center' || !data.align ? '' : ' style="margin-left:0;"') + '></div>' +
+            '</div>' +
           '</div>' +
         '</div>'
       );
@@ -2759,7 +2770,8 @@ var BLOCK_TYPES = {
             {value:'center', label:'Center (default)'},
             {value:'left', label:'Left'}
           ]
-        })
+        }) +
+        beBgPicker(idPrefix, data)
       );
     }
   },
@@ -2874,26 +2886,29 @@ var BLOCK_TYPES = {
         image_side: 'left',
         eyebrow: '',
         title: 'Section Title',
-        body: 'Your paragraph text goes here. Describe the product, feature or concept being introduced.'
+        body: 'Your paragraph text goes here. Describe the product, feature or concept being introduced.',
+        bg_preset: 'default',
+        bg_custom: '#f8fafc'
       };
     },
     render: function(data){
+      var bg = _beBackgroundCSS(data);
       var img = data.image_url
         ? '<img src="' + beEscape(data.image_url) + '" alt="' + beEscape(data.image_alt || '') + '" style="width:100%;height:auto;border-radius:10px;display:block;"/>'
-        : '<div style="background:#f0f4f8;border:2px dashed #cfd8e3;border-radius:10px;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:#aabbc8;font-size:.85rem;">No image yet</div>';
+        : '<div style="background:' + (bg.isDark ? 'rgba(255,255,255,.08)' : '#f0f4f8') + ';border:2px dashed ' + (bg.isDark ? 'rgba(255,255,255,.25)' : '#cfd8e3') + ';border-radius:10px;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:' + (bg.isDark ? 'rgba(255,255,255,.5)' : '#aabbc8') + ';font-size:.85rem;">No image yet</div>';
       var textCol = (
         '<div>' +
           (data.eyebrow ? '<div class="slbl" style="color:var(--accent);font-weight:700;font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.6rem;">' + beEscape(data.eyebrow) + '</div>' : '') +
-          '<h2 style="font-size:2rem;font-weight:800;color:var(--text);margin:0 0 1rem;line-height:1.2;">' + beEscape(data.title || '') + '</h2>' +
-          '<p style="font-size:1rem;line-height:1.75;color:var(--text);opacity:.85;">' + beEscape(data.body || '') + '</p>' +
+          '<h2 style="font-size:2rem;font-weight:800;color:' + bg.headingColor + ';margin:0 0 1rem;line-height:1.2;">' + beEscape(data.title || '') + '</h2>' +
+          '<p style="font-size:1rem;line-height:1.75;color:' + bg.textColor + ';opacity:.9;">' + beEscape(data.body || '') + '</p>' +
         '</div>'
       );
       var imgCol = '<div>' + img + '</div>';
       var first = (data.image_side === 'right') ? textCol : imgCol;
       var second = (data.image_side === 'right') ? imgCol : textCol;
       return (
-        '<div style="max-width:1200px;margin:0 auto;padding:70px 5%;">' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;">' +
+        '<div style="' + bg.wrapStyle + 'padding:70px 5%;">' +
+          '<div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;">' +
             first + second +
           '</div>' +
         '</div>'
@@ -2912,7 +2927,8 @@ var BLOCK_TYPES = {
         }) +
         beField(idPrefix, 'Eyebrow (optional)', 'eyebrow', data.eyebrow, {placeholder:'e.g. Product Detail'}) +
         beField(idPrefix, 'Heading', 'title', data.title) +
-        beField(idPrefix, 'Body text', 'body', data.body, {type:'textarea', rows:5})
+        beField(idPrefix, 'Body text', 'body', data.body, {type:'textarea', rows:5}) +
+        beBgPicker(idPrefix, data)
       );
     }
   },
@@ -2928,24 +2944,33 @@ var BLOCK_TYPES = {
           { icon:'🛡', title:'API Compliant', desc:'Designed to meet API 650 and MPMS 19.2 requirements.' },
           { icon:'⚙️', title:'Engineered to Spec', desc:'Custom-sized for your tank diameter and annular clearance.' },
           { icon:'⚡', title:'Long Service Life', desc:'Rated for 15+ years of continuous operation under typical conditions.' }
-        ]
+        ],
+        bg_preset: 'default',
+        bg_custom: '#f8fafc'
       };
     },
     render: function(data){
       var cols = parseInt(data.columns, 10) || 3;
       if (cols < 1) cols = 1; if (cols > 4) cols = 4;
+      var bg = _beBackgroundCSS(data);
+      // Card colours: when block bg is dark, give cards a subtle dark surface.
+      var cardBg     = bg.isDark ? 'rgba(255,255,255,.05)' : '#fff';
+      var cardBorder = bg.isDark ? 'rgba(255,255,255,.1)'   : '#eef2f7';
+      var cardTitle  = bg.isDark ? '#ffffff'                 : 'var(--text)';
+      var cardDesc   = bg.isDark ? 'rgba(255,255,255,.75)'   : 'var(--text)';
+      var descOpacity= bg.isDark ? '1'                       : '.75';
       var items = (data.items || []).map(function(it){
         return (
-          '<div style="background:#fff;border:1px solid #eef2f7;border-radius:10px;padding:1.6rem 1.4rem;transition:transform .2s,box-shadow .2s;">' +
+          '<div style="background:' + cardBg + ';border:1px solid ' + cardBorder + ';border-radius:10px;padding:1.6rem 1.4rem;transition:transform .2s,box-shadow .2s;">' +
             '<div style="font-size:2.2rem;margin-bottom:.7rem;line-height:1;">' + beEscape(it.icon || '') + '</div>' +
-            '<h4 style="font-size:1.05rem;font-weight:700;color:var(--text);margin:0 0 .5rem;">' + beEscape(it.title || '') + '</h4>' +
-            '<p style="font-size:.9rem;line-height:1.6;color:var(--text);opacity:.75;margin:0;">' + beEscape(it.desc || '') + '</p>' +
+            '<h4 style="font-size:1.05rem;font-weight:700;color:' + cardTitle + ';margin:0 0 .5rem;">' + beEscape(it.title || '') + '</h4>' +
+            '<p style="font-size:.9rem;line-height:1.6;color:' + cardDesc + ';opacity:' + descOpacity + ';margin:0;">' + beEscape(it.desc || '') + '</p>' +
           '</div>'
         );
       }).join('');
       return (
-        '<div style="max-width:1200px;margin:0 auto;padding:50px 5%;">' +
-          '<div style="display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:1.2rem;">' + items + '</div>' +
+        '<div style="' + bg.wrapStyle + 'padding:50px 5%;">' +
+          '<div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:1.2rem;">' + items + '</div>' +
         '</div>'
       );
     },
@@ -2975,7 +3000,8 @@ var BLOCK_TYPES = {
           ]
         }) +
         itemRows +
-        '<button onclick="beAddFeature(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .8rem;font-size:.8rem;cursor:pointer;margin-top:.2rem;">+ Add item</button>'
+        '<button onclick="beAddFeature(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .8rem;font-size:.8rem;cursor:pointer;margin-top:.2rem;">+ Add item</button>' +
+        beBgPicker(idPrefix, data)
       );
     }
   },
@@ -2992,32 +3018,41 @@ var BLOCK_TYPES = {
         col1_body: 'Content for the left column. Describe one aspect of the topic here.',
         col2_heading: 'Second Column',
         col2_body: 'Content for the right column. Describe the complementary aspect here.',
-        ratio: 'equal'
+        ratio: 'equal',
+        bg_preset: 'default',
+        bg_custom: '#f8fafc'
       };
     },
     render: function(data){
       var ratio = data.ratio === 'wide-left' ? '2fr 1fr'
                 : data.ratio === 'wide-right' ? '1fr 2fr'
                 : '1fr 1fr';
+      var bg = _beBackgroundCSS(data);
+      // Title/heading colours flip on dark backgrounds.
+      var titleColor   = bg.headingColor;
+      var bodyColor    = bg.textColor;
+      var bodyOpacity  = bg.isDark ? '.9' : '.85';
       var head = '';
       if (data.eyebrow || data.title) {
         head = '<div style="margin-bottom:2rem;">' +
-          (data.eyebrow ? '<div class="section-label">' + beEscape(data.eyebrow) + '</div>' : '') +
-          (data.title ? '<h2 class="section-title">' + beEscape(data.title) + '</h2>' : '') +
+          (data.eyebrow ? '<div class="section-label" style="color:var(--accent);">' + beEscape(data.eyebrow) + '</div>' : '') +
+          (data.title ? '<h2 class="section-title" style="color:' + titleColor + ';">' + beEscape(data.title) + '</h2>' : '') +
           '<div class="section-divider" style="margin-left:0;"></div>' +
         '</div>';
       }
       return (
-        '<div style="max-width:1200px;margin:0 auto;padding:50px 5%;">' +
-          head +
-          '<div style="display:grid;grid-template-columns:' + ratio + ';gap:2.5rem;align-items:start;">' +
-            '<div>' +
-              (data.col1_heading ? '<h3 style="font-size:1.2rem;font-weight:700;color:var(--text);margin:0 0 .8rem;">' + beEscape(data.col1_heading) + '</h3>' : '') +
-              '<div style="font-size:.95rem;line-height:1.75;color:var(--text);opacity:.85;">' + beEscape(data.col1_body || '') + '</div>' +
-            '</div>' +
-            '<div>' +
-              (data.col2_heading ? '<h3 style="font-size:1.2rem;font-weight:700;color:var(--text);margin:0 0 .8rem;">' + beEscape(data.col2_heading) + '</h3>' : '') +
-              '<div style="font-size:.95rem;line-height:1.75;color:var(--text);opacity:.85;">' + beEscape(data.col2_body || '') + '</div>' +
+        '<div style="' + bg.wrapStyle + 'padding:50px 5%;">' +
+          '<div style="max-width:1200px;margin:0 auto;">' +
+            head +
+            '<div style="display:grid;grid-template-columns:' + ratio + ';gap:2.5rem;align-items:start;">' +
+              '<div>' +
+                (data.col1_heading ? '<h3 style="font-size:1.2rem;font-weight:700;color:' + titleColor + ';margin:0 0 .8rem;">' + beEscape(data.col1_heading) + '</h3>' : '') +
+                '<div style="font-size:.95rem;line-height:1.75;color:' + bodyColor + ';opacity:' + bodyOpacity + ';">' + beEscape(data.col1_body || '') + '</div>' +
+              '</div>' +
+              '<div>' +
+                (data.col2_heading ? '<h3 style="font-size:1.2rem;font-weight:700;color:' + titleColor + ';margin:0 0 .8rem;">' + beEscape(data.col2_heading) + '</h3>' : '') +
+                '<div style="font-size:.95rem;line-height:1.75;color:' + bodyColor + ';opacity:' + bodyOpacity + ';">' + beEscape(data.col2_body || '') + '</div>' +
+              '</div>' +
             '</div>' +
           '</div>' +
         '</div>'
@@ -3044,7 +3079,8 @@ var BLOCK_TYPES = {
             beField(idPrefix, 'Right heading', 'col2_heading', data.col2_heading) +
             beField(idPrefix, 'Right body', 'col2_body', data.col2_body, {type:'textarea', rows:5}) +
           '</div>' +
-        '</div>'
+        '</div>' +
+        beBgPicker(idPrefix, data)
       );
     }
   },
@@ -3380,36 +3416,48 @@ var BLOCK_TYPES = {
           { q: 'How do I select the right rim seal for my tank?', a: 'Rim seal selection depends on tank diameter, product stored, operating temperature, and emissions requirements. Contact our engineers with your tank specifications and we\'ll recommend the optimal primary and secondary seal configuration.' },
           { q: 'Are your products API compliant?', a: 'Yes — all our rim seals and seal fittings are designed to meet API 650 and API MPMS Chapter 19.2 standards. Compliance documentation is provided with every supply.' },
           { q: 'What is the typical lead time for delivery?', a: 'Standard rim seal systems typically ship within 4–6 weeks of order confirmation. Custom configurations and large-diameter tanks may take longer; we\'ll confirm timelines at quotation stage.' }
-        ]
+        ],
+        bg_preset: 'default',
+        bg_custom: '#f8fafc'
       };
     },
     render: function(data){
+      var bg = _beBackgroundCSS(data);
+      // FAQ card colours flip on dark backgrounds.
+      var cardBg     = bg.isDark ? 'rgba(255,255,255,.06)'  : '#fff';
+      var cardBorder = bg.isDark ? 'rgba(255,255,255,.12)'  : '#e8eef5';
+      var qColor     = bg.isDark ? '#ffffff'                : 'var(--text)';
+      var aColor     = bg.isDark ? 'rgba(255,255,255,.85)'  : 'var(--text)';
+      var aOpacity   = bg.isDark ? '1'                       : '.85';
+      var divider    = bg.isDark ? 'rgba(255,255,255,.08)'  : '#f0f4f8';
+      var headTitleColor = bg.headingColor;
       var head = '';
       if (data.eyebrow || data.title) {
         head = '<div style="text-align:center;margin-bottom:2rem;">' +
-          (data.eyebrow ? '<div class="section-label">' + beEscape(data.eyebrow) + '</div>' : '') +
-          (data.title ? '<h2 class="section-title">' + beEscape(data.title) + '</h2>' : '') +
+          (data.eyebrow ? '<div class="section-label" style="color:var(--accent);">' + beEscape(data.eyebrow) + '</div>' : '') +
+          (data.title ? '<h2 class="section-title" style="color:' + headTitleColor + ';">' + beEscape(data.title) + '</h2>' : '') +
           '<div class="section-divider"></div>' +
         '</div>';
       }
       var items = (data.items || []).map(function(it, i){
         return (
-          '<details class="faq-item" style="border:1px solid #e8eef5;border-radius:8px;margin-bottom:.65rem;background:#fff;overflow:hidden;">' +
-            '<summary style="padding:1rem 1.3rem;font-weight:600;font-size:1rem;color:var(--text);cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:1rem;">' +
+          '<details class="faq-item" style="border:1px solid ' + cardBorder + ';border-radius:8px;margin-bottom:.65rem;background:' + cardBg + ';overflow:hidden;">' +
+            '<summary style="padding:1rem 1.3rem;font-weight:600;font-size:1rem;color:' + qColor + ';cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:1rem;">' +
               '<span>' + beEscape(it.q || '') + '</span>' +
               '<span class="faq-marker" style="color:var(--accent);font-size:1.2rem;line-height:1;flex-shrink:0;transition:transform .25s;">+</span>' +
             '</summary>' +
-            '<div style="padding:0 1.3rem 1rem;font-size:.92rem;line-height:1.7;color:var(--text);opacity:.85;border-top:1px solid #f0f4f8;padding-top:1rem;">' + beEscape(it.a || '') + '</div>' +
+            '<div style="padding:0 1.3rem 1rem;font-size:.92rem;line-height:1.7;color:' + aColor + ';opacity:' + aOpacity + ';border-top:1px solid ' + divider + ';padding-top:1rem;">' + beEscape(it.a || '') + '</div>' +
           '</details>'
         );
       }).join('');
-      // Inline style for the [open] marker rotation. Scoped per render via a unique class.
       var markerCss = '<style>.faq-item[open] .faq-marker{transform:rotate(45deg);}.faq-item summary::-webkit-details-marker{display:none;}</style>';
       return (
-        '<div style="max-width:880px;margin:0 auto;padding:60px 5%;">' +
+        '<div style="' + bg.wrapStyle + 'padding:60px 5%;">' +
           markerCss +
-          head +
-          '<div>' + items + '</div>' +
+          '<div style="max-width:880px;margin:0 auto;">' +
+            head +
+            '<div>' + items + '</div>' +
+          '</div>' +
         '</div>'
       );
     },
@@ -3435,7 +3483,8 @@ var BLOCK_TYPES = {
         beField(idPrefix, 'Title (optional)', 'title', data.title) +
         '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin:.7rem 0 .35rem;">Questions</label>' +
         rows +
-        '<button onclick="beAddFaqItem(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .8rem;font-size:.8rem;cursor:pointer;margin-top:.2rem;">+ Add question</button>'
+        '<button onclick="beAddFaqItem(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .8rem;font-size:.8rem;cursor:pointer;margin-top:.2rem;">+ Add question</button>' +
+        beBgPicker(idPrefix, data)
       );
     }
   },
@@ -3575,6 +3624,136 @@ function _navResolveUrl(url){
     href: 'javascript:void(0)',
     onclick: "showPage('" + safe + "');return false;"
   };
+}
+
+// Background-colour helpers used by content blocks.
+//
+// _beBackgroundCSS(data) returns CSS values derived from a block's
+// bg_preset (and bg_custom when preset='custom'). Presets:
+//   'default' / undefined → transparent, inherits page bg
+//   'soft'                 → soft grey (#f8fafc)
+//   'tinted'               → light tinted (theme --light)
+//   'navy'                 → navy gradient, light text
+//   'steel'                → steel gradient, light text
+//   'accent'               → brand accent, dark text
+//   'custom'               → uses bg_custom hex; text auto-flips by luminance
+//
+// Returns:
+//   { wrapStyle, textColor, mutedColor, headingColor, isDark }
+function _beBackgroundCSS(data){
+  data = data || {};
+  var preset = data.bg_preset || 'default';
+  var custom = data.bg_custom;
+  var bg = '', isDark = false;
+
+  switch (preset){
+    case 'soft':
+      bg = 'background:#f8fafc;';
+      break;
+    case 'tinted':
+      bg = 'background:var(--light);';
+      break;
+    case 'navy':
+      bg = 'background:linear-gradient(135deg, var(--navy), var(--steel));';
+      isDark = true;
+      break;
+    case 'steel':
+      bg = 'background:linear-gradient(160deg, var(--steel), var(--navy));';
+      isDark = true;
+      break;
+    case 'accent':
+      bg = 'background:var(--accent);';
+      // Accent is brand yellow — keep dark text for readability
+      break;
+    case 'custom':
+      if (custom && /^#[0-9a-fA-F]{6}$/.test(custom)){
+        bg = 'background:' + custom + ';';
+        isDark = _beHexIsDark(custom);
+      }
+      break;
+    case 'default':
+    default:
+      // No background — block stays transparent.
+      bg = '';
+  }
+
+  return {
+    wrapStyle: bg,
+    textColor: isDark ? '#ffffff' : 'var(--text)',
+    headingColor: isDark ? '#ffffff' : 'var(--text)',
+    mutedColor: isDark ? 'rgba(255,255,255,.75)' : 'var(--mid)',
+    eyebrowColor: isDark ? 'var(--accent)' : 'var(--accent)',
+    isDark: isDark
+  };
+}
+
+// Returns true if the given #RRGGBB hex would need light text on it
+// (i.e. the colour itself is dark). Uses perceptual luminance —
+// good enough for content-block text contrast decisions.
+function _beHexIsDark(hex){
+  if (!hex || !/^#[0-9a-fA-F]{6}$/.test(hex)) return false;
+  var r = parseInt(hex.slice(1,3), 16);
+  var g = parseInt(hex.slice(3,5), 16);
+  var b = parseInt(hex.slice(5,7), 16);
+  // Standard ITU-R BT.601 luma weights
+  var lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum < 0.55;
+}
+
+// Picker UI for the edit form. Drops a "Background" select + conditional
+// hex/swatch input that live-update the block's bg_preset / bg_custom.
+function beBgPicker(idPrefix, data){
+  data = data || {};
+  var preset = data.bg_preset || 'default';
+  var custom = data.bg_custom || '#f8fafc';
+  var presetSelect = beField(idPrefix, 'Background', 'bg_preset', preset, {
+    type: 'select',
+    options: [
+      { value:'default', label:'Default — transparent (inherits page)' },
+      { value:'soft',    label:'Soft grey — #f8fafc' },
+      { value:'tinted',  label:'Tinted — theme light' },
+      { value:'navy',    label:'Navy gradient — dark, light text' },
+      { value:'steel',   label:'Steel gradient — dark, light text' },
+      { value:'accent',  label:'Accent — brand colour' },
+      { value:'custom',  label:'Custom — pick a hex colour…' }
+    ]
+  });
+  // Hex picker only visible when preset==='custom'. We use a plain conditional
+  // wrapper rather than a full re-render so the colour change is instant.
+  var hexHidden = (preset !== 'custom') ? 'display:none;' : '';
+  var hexPicker =
+    '<div id="' + idPrefix + '-bgcustom" style="' + hexHidden + 'margin:.4rem 0 .8rem;display:' + (preset === 'custom' ? 'grid' : 'none') + ';grid-template-columns:60px 1fr 100px;gap:.5rem;align-items:center;">' +
+      '<input type="color" value="' + beEscape(custom) + '" oninput="beUpdateBgCustom(\'' + idPrefix + '\',this.value)" style="width:60px;height:36px;padding:0;border:1px solid #dde4ed;border-radius:5px;cursor:pointer;background:none;"/>' +
+      '<input type="text" value="' + beEscape(custom) + '" placeholder="#f8fafc" oninput="beUpdateBgCustom(\'' + idPrefix + '\',this.value)" style="border:1px solid #dde4ed;border-radius:5px;padding:.4rem .6rem;font-size:.85rem;font-family:monospace;"/>' +
+      '<div style="font-size:.7rem;color:#6677aa;line-height:1.3;">Text contrast auto-adjusts</div>' +
+    '</div>';
+  return presetSelect + hexPicker;
+}
+
+// Update the bg_custom hex on a block. Called from both the colour-input
+// and the text input. Re-rendering the preview happens automatically;
+// we don't re-render the block list (it would steal focus while typing).
+function beUpdateBgCustom(blockId, value){
+  // Light validation — only accept things that look hex-shaped, but allow
+  // partial entries while typing (e.g. '#f' on its way to '#f8fafc').
+  var i = beFindBlockIndex(blockId);
+  if (i < 0) return;
+  if (!_beDraft[i].data) _beDraft[i].data = {};
+  _beDraft[i].data.bg_custom = value;
+  // Sync the two inputs (color + text) so they show the same value.
+  // Look them up under the form's wrapper.
+  try {
+    var wrapId = blockId + '-bgcustom';
+    var wrap = document.getElementById(wrapId);
+    if (wrap){
+      var inputs = wrap.querySelectorAll('input');
+      for (var k = 0; k < inputs.length; k++){
+        if (inputs[k].value !== value) inputs[k].value = value;
+      }
+    }
+  } catch(e){ /* shrug — non-critical */ }
+  beRenderPreview();
+  beSetStatus('Unsaved changes.', 'warn');
 }
 
 function beCreateBlock(type){
@@ -3853,6 +4032,14 @@ function beUpdateBlockField(blockId, key, value){
   if (i < 0) return;
   if (!_beDraft[i].data) _beDraft[i].data = {};
   _beDraft[i].data[key] = value;
+  // Special case: when bg_preset changes, toggle the conditional hex picker
+  // without re-rendering the whole edit form (which would steal focus).
+  if (key === 'bg_preset'){
+    try {
+      var wrap = document.getElementById(blockId + '-bgcustom');
+      if (wrap) wrap.style.display = (value === 'custom') ? 'grid' : 'none';
+    } catch(e){ /* non-critical */ }
+  }
   beRenderPreview();
   beSetStatus('Unsaved changes.', 'warn');
 }
