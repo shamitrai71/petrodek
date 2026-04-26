@@ -2980,6 +2980,466 @@ var BLOCK_TYPES = {
     }
   },
 
+  'two-column': {
+    label: 'Two-Column Section',
+    icon: '⫴',
+    desc: 'Two side-by-side text columns under an optional shared title. Good for "Overview / Specifications" or "Problem / Solution" rows.',
+    defaults: function(){
+      return {
+        title: '',
+        eyebrow: '',
+        col1_heading: 'First Column',
+        col1_body: 'Content for the left column. Describe one aspect of the topic here.',
+        col2_heading: 'Second Column',
+        col2_body: 'Content for the right column. Describe the complementary aspect here.',
+        ratio: 'equal'
+      };
+    },
+    render: function(data){
+      var ratio = data.ratio === 'wide-left' ? '2fr 1fr'
+                : data.ratio === 'wide-right' ? '1fr 2fr'
+                : '1fr 1fr';
+      var head = '';
+      if (data.eyebrow || data.title) {
+        head = '<div style="margin-bottom:2rem;">' +
+          (data.eyebrow ? '<div class="section-label">' + beEscape(data.eyebrow) + '</div>' : '') +
+          (data.title ? '<h2 class="section-title">' + beEscape(data.title) + '</h2>' : '') +
+          '<div class="section-divider" style="margin-left:0;"></div>' +
+        '</div>';
+      }
+      return (
+        '<div style="max-width:1200px;margin:0 auto;padding:50px 5%;">' +
+          head +
+          '<div style="display:grid;grid-template-columns:' + ratio + ';gap:2.5rem;align-items:start;">' +
+            '<div>' +
+              (data.col1_heading ? '<h3 style="font-size:1.2rem;font-weight:700;color:var(--text);margin:0 0 .8rem;">' + beEscape(data.col1_heading) + '</h3>' : '') +
+              '<div style="font-size:.95rem;line-height:1.75;color:var(--text);opacity:.85;">' + beEscape(data.col1_body || '') + '</div>' +
+            '</div>' +
+            '<div>' +
+              (data.col2_heading ? '<h3 style="font-size:1.2rem;font-weight:700;color:var(--text);margin:0 0 .8rem;">' + beEscape(data.col2_heading) + '</h3>' : '') +
+              '<div style="font-size:.95rem;line-height:1.75;color:var(--text);opacity:.85;">' + beEscape(data.col2_body || '') + '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      return (
+        beField(idPrefix, 'Eyebrow (optional)', 'eyebrow', data.eyebrow, {placeholder:'e.g. Overview'}) +
+        beField(idPrefix, 'Section title (optional)', 'title', data.title) +
+        beField(idPrefix, 'Column ratio', 'ratio', data.ratio || 'equal', {
+          type:'select',
+          options:[
+            {value:'equal', label:'Equal — 1:1'},
+            {value:'wide-left', label:'Wider left — 2:1'},
+            {value:'wide-right', label:'Wider right — 1:2'}
+          ]
+        }) +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.4rem;">' +
+          '<div>' +
+            beField(idPrefix, 'Left heading', 'col1_heading', data.col1_heading) +
+            beField(idPrefix, 'Left body', 'col1_body', data.col1_body, {type:'textarea', rows:5}) +
+          '</div>' +
+          '<div>' +
+            beField(idPrefix, 'Right heading', 'col2_heading', data.col2_heading) +
+            beField(idPrefix, 'Right body', 'col2_body', data.col2_body, {type:'textarea', rows:5}) +
+          '</div>' +
+        '</div>'
+      );
+    }
+  },
+
+  'factsheet': {
+    label: 'Factsheet / Download Card',
+    icon: '📋',
+    desc: 'Bordered card with icon, title, description, and a download or contact button. Good for product datasheets and brochures.',
+    defaults: function(){
+      return {
+        icon: '📄',
+        eyebrow: 'Factsheet',
+        title: 'Product Datasheet',
+        description: 'Download the technical datasheet with full specifications, materials of construction, and installation guidelines.',
+        btn_label: 'Download PDF',
+        btn_url: '',
+        background: 'light'
+      };
+    },
+    render: function(data){
+      var bgStyle = data.background === 'dark'
+        ? 'background:linear-gradient(160deg, var(--navy), var(--steel));color:#fff;'
+        : 'background:#f8fafc;color:var(--text);';
+      var titleColor = data.background === 'dark' ? '#fff' : 'var(--text)';
+      var descColor = data.background === 'dark' ? 'rgba(255,255,255,.75)' : 'var(--mid)';
+      var btn = '';
+      if (data.btn_label) {
+        var resolved = _navResolveUrl(data.btn_url || '');
+        var attrs;
+        if (!resolved) {
+          attrs = ' href="javascript:void(0)" onclick="return false;"';
+        } else if (resolved.external) {
+          attrs = ' href="' + beEscape(resolved.href) + '" target="_blank" rel="noopener"';
+        } else {
+          attrs = ' href="' + beEscape(resolved.href) + '" onclick="' + beEscape(resolved.onclick) + '"';
+        }
+        btn = '<a' + attrs + ' class="btn-primary" style="margin-top:1.2rem;display:inline-block;">' + beEscape(data.btn_label) + ' →</a>';
+      }
+      return (
+        '<div style="max-width:760px;margin:0 auto;padding:40px 5%;">' +
+          '<div style="' + bgStyle + 'border:1px solid rgba(232,160,32,.2);border-radius:12px;padding:2rem 2.2rem;display:flex;gap:1.4rem;align-items:flex-start;">' +
+            '<div style="font-size:2.4rem;line-height:1;flex-shrink:0;">' + beEscape(data.icon || '📄') + '</div>' +
+            '<div style="flex:1;">' +
+              (data.eyebrow ? '<div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:.4rem;">' + beEscape(data.eyebrow) + '</div>' : '') +
+              '<h3 style="font-size:1.25rem;font-weight:700;color:' + titleColor + ';margin:0 0 .6rem;">' + beEscape(data.title || '') + '</h3>' +
+              '<p style="font-size:.9rem;line-height:1.7;color:' + descColor + ';margin:0;">' + beEscape(data.description || '') + '</p>' +
+              btn +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      return (
+        '<div style="display:grid;grid-template-columns:80px 1fr;gap:.5rem;">' +
+          beField(idPrefix, 'Icon', 'icon', data.icon, {placeholder:'📄'}) +
+          beField(idPrefix, 'Eyebrow', 'eyebrow', data.eyebrow, {placeholder:'Factsheet'}) +
+        '</div>' +
+        beField(idPrefix, 'Title', 'title', data.title) +
+        beField(idPrefix, 'Description', 'description', data.description, {type:'textarea', rows:3}) +
+        '<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:.5rem;">' +
+          beField(idPrefix, 'Button label', 'btn_label', data.btn_label, {placeholder:'Download PDF'}) +
+          beField(idPrefix, 'Button URL', 'btn_url', data.btn_url, {placeholder:'https://… or page slug'}) +
+        '</div>' +
+        beField(idPrefix, 'Background', 'background', data.background || 'light', {
+          type:'select',
+          options:[
+            {value:'light', label:'Light — soft grey'},
+            {value:'dark', label:'Dark — navy gradient'}
+          ]
+        }) +
+        beInfoBox('Leave the button label blank to hide the button. Button URL accepts page slugs like <code>contact</code> or full URLs like <code>https://...</code>.')
+      );
+    }
+  },
+
+  'blog-grid': {
+    label: 'Blog / Articles Grid',
+    icon: '📰',
+    desc: 'Grid of blog post cards pulled from the Blog admin section. Choose how many to show and optionally filter by tag.',
+    defaults: function(){
+      return {
+        eyebrow: 'Latest Articles',
+        title: 'From the Blog',
+        max_posts: 6,
+        filter_tag: '',
+        show_drafts: false
+      };
+    },
+    render: function(data){
+      var d = cmsGet();
+      // Prefer blog_posts (the richer schema), fall back to posts
+      var posts = Array.isArray(d.blog_posts) && d.blog_posts.length
+        ? d.blog_posts
+        : (Array.isArray(d.posts) ? d.posts : []);
+      // Filter by status
+      var filtered = posts.filter(function(p){
+        if (!data.show_drafts && p.status && p.status !== 'published') return false;
+        if (data.filter_tag) {
+          var tag = String(data.filter_tag).toLowerCase().trim();
+          var pTag = String(p.tag || p.tags || p.cat || '').toLowerCase();
+          if (pTag.indexOf(tag) < 0) return false;
+        }
+        return true;
+      });
+      var max = parseInt(data.max_posts, 10) || 6;
+      filtered = filtered.slice(0, max);
+
+      var head = '';
+      if (data.eyebrow || data.title) {
+        head = '<div style="text-align:center;margin-bottom:2rem;">' +
+          (data.eyebrow ? '<div class="section-label">' + beEscape(data.eyebrow) + '</div>' : '') +
+          (data.title ? '<h2 class="section-title">' + beEscape(data.title) + '</h2>' : '') +
+          '<div class="section-divider"></div>' +
+        '</div>';
+      }
+      var cardsHtml;
+      if (filtered.length === 0) {
+        cardsHtml = '<div style="text-align:center;padding:2.5rem;color:var(--mid);font-size:.88rem;background:#f8fafc;border-radius:8px;">No published articles yet. Add posts in <strong>Admin → Blog Articles</strong>.</div>';
+      } else {
+        cardsHtml = '<div class="blog-grid">' + filtered.map(function(p){
+          var tag = beEscape(p.tag || p.cat || '');
+          var title = beEscape(p.title || '');
+          var excerpt = beEscape(p.excerpt || '');
+          var date = beEscape(p.pubdate || p.date || '');
+          var icon = beEscape(p.icon || '📄');
+          // Image fallback to icon
+          var img = p.img
+            ? '<div class="blog-card-img" style="background-image:url(\'' + beEscape(p.img) + '\');background-size:cover;background-position:center;"></div>'
+            : '<div class="blog-card-img">' + icon + '</div>';
+          return (
+            '<article class="blog-card">' +
+              img +
+              '<div class="blog-card-body">' +
+                (tag ? '<div class="blog-tag">' + tag + '</div>' : '') +
+                '<h3>' + title + '</h3>' +
+                (excerpt ? '<p>' + excerpt + '</p>' : '') +
+                (date ? '<div class="blog-meta">' + date + '</div>' : '') +
+              '</div>' +
+            '</article>'
+          );
+        }).join('') + '</div>';
+      }
+      return (
+        '<div style="max-width:1200px;margin:0 auto;padding:60px 5%;">' +
+          head + cardsHtml +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      return (
+        beField(idPrefix, 'Eyebrow (optional)', 'eyebrow', data.eyebrow) +
+        beField(idPrefix, 'Title (optional)', 'title', data.title) +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
+          beField(idPrefix, 'Max posts to show', 'max_posts', String(data.max_posts || 6), {
+            type:'select',
+            options:[
+              {value:'3', label:'3 posts'},
+              {value:'6', label:'6 posts'},
+              {value:'9', label:'9 posts'},
+              {value:'12', label:'12 posts'}
+            ]
+          }) +
+          beField(idPrefix, 'Filter by tag (optional)', 'filter_tag', data.filter_tag, {placeholder:'e.g. Technical'}) +
+        '</div>' +
+        '<label style="display:flex;align-items:center;gap:.5rem;margin-top:.5rem;font-size:.84rem;">' +
+          '<input type="checkbox" ' + (data.show_drafts ? 'checked' : '') + ' ' +
+            'onchange="beUpdateBlockField(\'' + idPrefix + '\',\'show_drafts\',this.checked)"/>' +
+          'Include draft posts (visible only in preview)' +
+        '</label>' +
+        beInfoBox('Posts come from <strong>Admin → Blog Articles</strong>. The grid pulls the most recent posts matching the filter.')
+      );
+    }
+  },
+
+  'stats-strip': {
+    label: 'Stats Strip',
+    icon: '📊',
+    desc: 'Horizontal row of big-number stats with labels. Good for impact metrics like "25+ Years / 200+ Installations".',
+    defaults: function(){
+      return {
+        background: 'light',
+        items: [
+          { num: '25+', label: 'Years Experience' },
+          { num: '200+', label: 'Installations' },
+          { num: '4', label: 'Major Clients' },
+          { num: '100%', label: 'API Compliant' }
+        ]
+      };
+    },
+    render: function(data){
+      var items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length) return '';
+      var cols = items.length;
+      var bg = data.background === 'dark'
+        ? 'background:linear-gradient(135deg, var(--navy), var(--steel));'
+        : data.background === 'accent'
+        ? 'background:var(--accent);'
+        : 'background:#f8fafc;';
+      var numColor = (data.background === 'dark') ? 'var(--accent)'
+                  : (data.background === 'accent') ? '#fff'
+                  : 'var(--accent)';
+      var labelColor = (data.background === 'dark') ? '#6688aa'
+                    : (data.background === 'accent') ? 'rgba(10,22,40,.85)'
+                    : 'var(--mid)';
+      var itemsHtml = items.map(function(it){
+        return (
+          '<div style="text-align:center;padding:1.4rem 1rem;">' +
+            '<div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:800;font-size:2.6rem;line-height:1;color:' + numColor + ';">' + beEscape(it.num || '') + '</div>' +
+            '<div style="font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:' + labelColor + ';margin-top:.5rem;">' + beEscape(it.label || '') + '</div>' +
+          '</div>'
+        );
+      }).join('');
+      return (
+        '<div style="' + bg + 'padding:50px 5%;">' +
+          '<div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:1px;background:rgba(255,255,255,.08);">' +
+            itemsHtml +
+          '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      var rows = (data.items || []).map(function(it, i){
+        return (
+          '<div style="display:grid;grid-template-columns:120px 1fr auto;gap:.4rem;margin-bottom:.4rem;align-items:center;">' +
+            '<input type="text" placeholder="25+" value="' + beEscape(it.num || '') + '" oninput="beUpdateStatsItem(\'' + idPrefix + '\',' + i + ',\'num\',this.value)" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.9rem;font-weight:700;text-align:center;"/>' +
+            '<input type="text" placeholder="Years Experience" value="' + beEscape(it.label || '') + '" oninput="beUpdateStatsItem(\'' + idPrefix + '\',' + i + ',\'label\',this.value)" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;"/>' +
+            '<button onclick="beRemoveStatsItem(\'' + idPrefix + '\',' + i + ')" title="Remove" style="background:#fff;border:1px solid #f0c0c0;color:#c0392b;border-radius:4px;padding:.3rem .55rem;font-size:.75rem;cursor:pointer;">✕</button>' +
+          '</div>'
+        );
+      }).join('');
+      return (
+        beField(idPrefix, 'Background', 'background', data.background || 'light', {
+          type:'select',
+          options:[
+            {value:'light', label:'Light — soft grey'},
+            {value:'dark', label:'Dark — navy gradient'},
+            {value:'accent', label:'Accent — brand colour'}
+          ]
+        }) +
+        '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin:.7rem 0 .35rem;">Stats</label>' +
+        rows +
+        '<button onclick="beAddStatsItem(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .8rem;font-size:.8rem;cursor:pointer;margin-top:.2rem;">+ Add stat</button>'
+      );
+    }
+  },
+
+  'logo-cloud': {
+    label: 'Client / Partner Logos',
+    icon: '🏢',
+    desc: 'Grid of client logos with optional country and short description. Good for "Trusted by" sections.',
+    defaults: function(){
+      return {
+        eyebrow: 'Who We Serve',
+        title: 'Our Clients',
+        sub: 'Trusted by leading petroleum refiners, petrochemical manufacturers, and engineering contractors.',
+        items: [
+          { logo:'', name:'Reliance Industries Limited', country:'India', desc:'One of India\'s largest integrated energy and petrochemicals companies.' },
+          { logo:'', name:'Nayara Energy Limited', country:'India', desc:'Operators of one of India\'s largest single-location refineries.' },
+          { logo:'', name:'Bridge & Roof Co.', country:'India', desc:'Leading EPC contractor with experience in petroleum tank projects.' },
+          { logo:'', name:'Haldia Petrochemicals', country:'India', desc:'A major petrochemical manufacturer requiring best-available emission control.' }
+        ]
+      };
+    },
+    render: function(data){
+      var head = '';
+      if (data.eyebrow || data.title || data.sub) {
+        head = '<div style="text-align:center;margin-bottom:2rem;">' +
+          (data.eyebrow ? '<div class="section-label">' + beEscape(data.eyebrow) + '</div>' : '') +
+          (data.title ? '<h2 class="section-title">' + beEscape(data.title) + '</h2>' : '') +
+          (data.sub ? '<p style="max-width:680px;margin:.5rem auto 1rem;color:var(--mid);font-size:.92rem;line-height:1.7;">' + beEscape(data.sub) + '</p>' : '') +
+          '<div class="section-divider"></div>' +
+        '</div>';
+      }
+      var cards = (data.items || []).map(function(it){
+        var logoHtml = it.logo
+          ? '<img src="' + beEscape(it.logo) + '" alt="' + beEscape(it.name || '') + '" class="client-logo"/>'
+          : '<div class="client-logo" style="background:#f0f4f8;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:#aabbc8;">' + beEscape((it.name || '?').charAt(0).toUpperCase()) + '</div>';
+        return (
+          '<div class="client-card">' +
+            logoHtml +
+            '<h4>' + beEscape(it.name || '') + '</h4>' +
+            (it.country ? '<div class="client-country">' + beEscape(it.country) + '</div>' : '') +
+            (it.desc ? '<p>' + beEscape(it.desc) + '</p>' : '') +
+          '</div>'
+        );
+      }).join('');
+      return (
+        '<section class="clients" style="padding:60px 5%;">' +
+          head +
+          '<div class="clients-grid">' + cards + '</div>' +
+        '</section>'
+      );
+    },
+    edit: function(data, idPrefix){
+      var rows = (data.items || []).map(function(it, i){
+        return (
+          '<div style="border:1px solid #e8eef5;border-radius:6px;padding:.6rem .7rem;margin-bottom:.5rem;background:#f8fafc;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">' +
+              '<div style="font-size:.75rem;font-weight:700;color:#6677aa;">Client ' + (i + 1) + '</div>' +
+              '<button onclick="beRemoveLogoItem(\'' + idPrefix + '\',' + i + ')" title="Remove" style="background:#fff;border:1px solid #f0c0c0;color:#c0392b;border-radius:4px;padding:.2rem .5rem;font-size:.72rem;cursor:pointer;">✕</button>' +
+            '</div>' +
+            '<input type="text" placeholder="Logo image URL (optional)" value="' + beEscape(it.logo || '') + '" oninput="beUpdateLogoItem(\'' + idPrefix + '\',' + i + ',\'logo\',this.value)" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.78rem;font-family:inherit;margin-bottom:.4rem;"/>' +
+            '<div style="display:grid;grid-template-columns:2fr 1fr;gap:.4rem;margin-bottom:.4rem;">' +
+              '<input type="text" placeholder="Client name" value="' + beEscape(it.name || '') + '" oninput="beUpdateLogoItem(\'' + idPrefix + '\',' + i + ',\'name\',this.value)" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.85rem;font-weight:600;"/>' +
+              '<input type="text" placeholder="Country" value="' + beEscape(it.country || '') + '" oninput="beUpdateLogoItem(\'' + idPrefix + '\',' + i + ',\'country\',this.value)" style="border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;"/>' +
+            '</div>' +
+            '<textarea placeholder="Short description" rows="2" oninput="beUpdateLogoItem(\'' + idPrefix + '\',' + i + ',\'desc\',this.value)" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:4px;padding:.35rem .5rem;font-size:.8rem;font-family:inherit;">' + beEscape(it.desc || '') + '</textarea>' +
+          '</div>'
+        );
+      }).join('');
+      return (
+        beField(idPrefix, 'Eyebrow', 'eyebrow', data.eyebrow) +
+        beField(idPrefix, 'Title', 'title', data.title) +
+        beField(idPrefix, 'Subtitle', 'sub', data.sub, {type:'textarea', rows:2}) +
+        '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin:.7rem 0 .35rem;">Clients</label>' +
+        rows +
+        '<button onclick="beAddLogoItem(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .8rem;font-size:.8rem;cursor:pointer;margin-top:.2rem;">+ Add client</button>' +
+        beInfoBox('Logo URL is optional — when blank, an initial-letter placeholder is shown. Use the Cloudinary path (e.g. <code>/images/clients/reliance.jpg</code>) or a full URL.')
+      );
+    }
+  },
+
+  'faq': {
+    label: 'FAQ / Accordion',
+    icon: '❔',
+    desc: 'Collapsible question-and-answer list. Click a question to expand its answer.',
+    defaults: function(){
+      return {
+        eyebrow: 'Frequently Asked',
+        title: 'Common Questions',
+        items: [
+          { q: 'How do I select the right rim seal for my tank?', a: 'Rim seal selection depends on tank diameter, product stored, operating temperature, and emissions requirements. Contact our engineers with your tank specifications and we\'ll recommend the optimal primary and secondary seal configuration.' },
+          { q: 'Are your products API compliant?', a: 'Yes — all our rim seals and seal fittings are designed to meet API 650 and API MPMS Chapter 19.2 standards. Compliance documentation is provided with every supply.' },
+          { q: 'What is the typical lead time for delivery?', a: 'Standard rim seal systems typically ship within 4–6 weeks of order confirmation. Custom configurations and large-diameter tanks may take longer; we\'ll confirm timelines at quotation stage.' }
+        ]
+      };
+    },
+    render: function(data){
+      var head = '';
+      if (data.eyebrow || data.title) {
+        head = '<div style="text-align:center;margin-bottom:2rem;">' +
+          (data.eyebrow ? '<div class="section-label">' + beEscape(data.eyebrow) + '</div>' : '') +
+          (data.title ? '<h2 class="section-title">' + beEscape(data.title) + '</h2>' : '') +
+          '<div class="section-divider"></div>' +
+        '</div>';
+      }
+      var items = (data.items || []).map(function(it, i){
+        return (
+          '<details class="faq-item" style="border:1px solid #e8eef5;border-radius:8px;margin-bottom:.65rem;background:#fff;overflow:hidden;">' +
+            '<summary style="padding:1rem 1.3rem;font-weight:600;font-size:1rem;color:var(--text);cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:1rem;">' +
+              '<span>' + beEscape(it.q || '') + '</span>' +
+              '<span class="faq-marker" style="color:var(--accent);font-size:1.2rem;line-height:1;flex-shrink:0;transition:transform .25s;">+</span>' +
+            '</summary>' +
+            '<div style="padding:0 1.3rem 1rem;font-size:.92rem;line-height:1.7;color:var(--text);opacity:.85;border-top:1px solid #f0f4f8;padding-top:1rem;">' + beEscape(it.a || '') + '</div>' +
+          '</details>'
+        );
+      }).join('');
+      // Inline style for the [open] marker rotation. Scoped per render via a unique class.
+      var markerCss = '<style>.faq-item[open] .faq-marker{transform:rotate(45deg);}.faq-item summary::-webkit-details-marker{display:none;}</style>';
+      return (
+        '<div style="max-width:880px;margin:0 auto;padding:60px 5%;">' +
+          markerCss +
+          head +
+          '<div>' + items + '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      var rows = (data.items || []).map(function(it, i){
+        return (
+          '<div style="border:1px solid #e8eef5;border-radius:6px;padding:.6rem .7rem;margin-bottom:.5rem;background:#f8fafc;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">' +
+              '<div style="font-size:.75rem;font-weight:700;color:#6677aa;">Q' + (i + 1) + '</div>' +
+              '<div style="display:flex;gap:.3rem;">' +
+                '<button onclick="beMoveFaqItem(\'' + idPrefix + '\',' + i + ',-1)" ' + (i === 0 ? 'disabled' : '') + ' title="Move up" style="background:#fff;border:1px solid #dde4ed;border-radius:4px;padding:.2rem .45rem;font-size:.7rem;cursor:pointer;' + (i === 0 ? 'opacity:.4;cursor:not-allowed;' : '') + '">↑</button>' +
+                '<button onclick="beMoveFaqItem(\'' + idPrefix + '\',' + i + ',1)" title="Move down" style="background:#fff;border:1px solid #dde4ed;border-radius:4px;padding:.2rem .45rem;font-size:.7rem;cursor:pointer;">↓</button>' +
+                '<button onclick="beRemoveFaqItem(\'' + idPrefix + '\',' + i + ')" title="Remove" style="background:#fff;border:1px solid #f0c0c0;color:#c0392b;border-radius:4px;padding:.2rem .45rem;font-size:.7rem;cursor:pointer;">✕</button>' +
+              '</div>' +
+            '</div>' +
+            '<input type="text" placeholder="Question" value="' + beEscape(it.q || '') + '" oninput="beUpdateFaqItem(\'' + idPrefix + '\',' + i + ',\'q\',this.value)" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:4px;padding:.4rem .55rem;font-size:.9rem;font-weight:600;font-family:inherit;margin-bottom:.4rem;"/>' +
+            '<textarea placeholder="Answer" rows="3" oninput="beUpdateFaqItem(\'' + idPrefix + '\',' + i + ',\'a\',this.value)" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:4px;padding:.4rem .55rem;font-size:.85rem;font-family:inherit;line-height:1.5;">' + beEscape(it.a || '') + '</textarea>' +
+          '</div>'
+        );
+      }).join('');
+      return (
+        beField(idPrefix, 'Eyebrow (optional)', 'eyebrow', data.eyebrow) +
+        beField(idPrefix, 'Title (optional)', 'title', data.title) +
+        '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin:.7rem 0 .35rem;">Questions</label>' +
+        rows +
+        '<button onclick="beAddFaqItem(\'' + idPrefix + '\')" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .8rem;font-size:.8rem;cursor:pointer;margin-top:.2rem;">+ Add question</button>'
+      );
+    }
+  },
+
   'footer': {
     label: 'Site Footer',
     icon: '⬇',
@@ -3537,6 +3997,61 @@ function beAddFeature(blockId){
 }
 function beRemoveFeature(blockId, idx){
   beMutateBlockArray(blockId, 'items', function(arr){ arr.splice(idx, 1); }, true);
+}
+
+// Stats-strip helpers
+function beUpdateStatsItem(blockId, idx, key, value){
+  beMutateBlockArray(blockId, 'items', function(arr){
+    if (!arr[idx]) arr[idx] = {};
+    arr[idx][key] = value;
+  }, false);
+}
+function beAddStatsItem(blockId){
+  beMutateBlockArray(blockId, 'items', function(arr){
+    arr.push({ num:'0', label:'New stat' });
+  }, true);
+}
+function beRemoveStatsItem(blockId, idx){
+  beMutateBlockArray(blockId, 'items', function(arr){ arr.splice(idx, 1); }, true);
+}
+
+// Logo-cloud helpers
+function beUpdateLogoItem(blockId, idx, key, value){
+  beMutateBlockArray(blockId, 'items', function(arr){
+    if (!arr[idx]) arr[idx] = {};
+    arr[idx][key] = value;
+  }, false);
+}
+function beAddLogoItem(blockId){
+  beMutateBlockArray(blockId, 'items', function(arr){
+    arr.push({ logo:'', name:'New Client', country:'', desc:'' });
+  }, true);
+}
+function beRemoveLogoItem(blockId, idx){
+  beMutateBlockArray(blockId, 'items', function(arr){ arr.splice(idx, 1); }, true);
+}
+
+// FAQ helpers
+function beUpdateFaqItem(blockId, idx, key, value){
+  beMutateBlockArray(blockId, 'items', function(arr){
+    if (!arr[idx]) arr[idx] = {};
+    arr[idx][key] = value;
+  }, false);
+}
+function beAddFaqItem(blockId){
+  beMutateBlockArray(blockId, 'items', function(arr){
+    arr.push({ q:'New question?', a:'Answer goes here.' });
+  }, true);
+}
+function beRemoveFaqItem(blockId, idx){
+  beMutateBlockArray(blockId, 'items', function(arr){ arr.splice(idx, 1); }, true);
+}
+function beMoveFaqItem(blockId, idx, delta){
+  beMutateBlockArray(blockId, 'items', function(arr){
+    var j = idx + delta;
+    if (j < 0 || j >= arr.length) return;
+    var tmp = arr[idx]; arr[idx] = arr[j]; arr[j] = tmp;
+  }, true);
 }
 
 // Save the draft to CMS. Fires server save via cmsSet.
