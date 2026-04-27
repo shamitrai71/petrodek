@@ -3097,7 +3097,8 @@ var BLOCK_TYPES = {
         description: 'Download the technical datasheet with full specifications, materials of construction, and installation guidelines.',
         btn_label: 'Download PDF',
         btn_url: '',
-        background: 'light'
+        background: 'light',
+        width: 'full'
       };
     },
     render: function(data){
@@ -3106,21 +3107,29 @@ var BLOCK_TYPES = {
         : 'background:#f8fafc;color:var(--text);';
       var titleColor = data.background === 'dark' ? '#fff' : 'var(--text)';
       var descColor = data.background === 'dark' ? 'rgba(255,255,255,.75)' : 'var(--mid)';
+      // Width selector: compact (legacy 760px), standard (1000px), full (1200px)
+      var maxW = data.width === 'compact' ? '760px'
+               : data.width === 'standard' ? '1000px'
+               : '1200px';
       var btn = '';
       if (data.btn_label) {
-        var resolved = _navResolveUrl(data.btn_url || '');
+        var resolved = _beResolveDownloadUrl(data.btn_url || '');
         var attrs;
         if (!resolved) {
           attrs = ' href="javascript:void(0)" onclick="return false;"';
         } else if (resolved.external) {
           attrs = ' href="' + beEscape(resolved.href) + '" target="_blank" rel="noopener"';
+          // Add the `download` attribute for self-hosted files. Browsers
+          // honour this on same-origin and CORS-OK responses; it's a no-op
+          // for cross-origin (e.g. Google Drive), so safe to include.
+          if (resolved.download) attrs += ' download';
         } else {
           attrs = ' href="' + beEscape(resolved.href) + '" onclick="' + beEscape(resolved.onclick) + '"';
         }
         btn = '<a' + attrs + ' class="btn-primary" style="margin-top:1.2rem;display:inline-block;">' + beEscape(data.btn_label) + ' →</a>';
       }
       return (
-        '<div style="max-width:760px;margin:0 auto;padding:40px 5%;">' +
+        '<div style="max-width:' + maxW + ';margin:0 auto;padding:40px 5%;">' +
           '<div style="' + bgStyle + 'border:1px solid rgba(232,160,32,.2);border-radius:12px;padding:2rem 2.2rem;display:flex;gap:1.4rem;align-items:flex-start;">' +
             '<div style="font-size:2.4rem;line-height:1;flex-shrink:0;">' + beEscape(data.icon || '📄') + '</div>' +
             '<div style="flex:1;">' +
@@ -3143,16 +3152,31 @@ var BLOCK_TYPES = {
         beField(idPrefix, 'Description', 'description', data.description, {type:'textarea', rows:3}) +
         '<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:.5rem;">' +
           beField(idPrefix, 'Button label', 'btn_label', data.btn_label, {placeholder:'Download PDF'}) +
-          beField(idPrefix, 'Button URL', 'btn_url', data.btn_url, {placeholder:'https://… or page slug'}) +
+          beField(idPrefix, 'Button URL', 'btn_url', data.btn_url, {placeholder:'https://… or Drive sharing URL'}) +
         '</div>' +
-        beField(idPrefix, 'Background', 'background', data.background || 'light', {
-          type:'select',
-          options:[
-            {value:'light', label:'Light — soft grey'},
-            {value:'dark', label:'Dark — navy gradient'}
-          ]
-        }) +
-        beInfoBox('Leave the button label blank to hide the button. Button URL accepts page slugs like <code>contact</code> or full URLs like <code>https://...</code>.')
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
+          beField(idPrefix, 'Width', 'width', data.width || 'full', {
+            type:'select',
+            options:[
+              {value:'compact',  label:'Compact — 760px'},
+              {value:'standard', label:'Standard — 1000px'},
+              {value:'full',     label:'Full — 1200px (matches other blocks)'}
+            ]
+          }) +
+          beField(idPrefix, 'Background', 'background', data.background || 'light', {
+            type:'select',
+            options:[
+              {value:'light', label:'Light — soft grey'},
+              {value:'dark',  label:'Dark — navy gradient'}
+            ]
+          }) +
+        '</div>' +
+        beInfoBox(
+          'Leave the button label blank to hide the button. Button URL accepts:<br>' +
+          '• <strong>Page slugs</strong> like <code>contact</code><br>' +
+          '• <strong>Direct file URLs</strong> like <code>https://your-site/file.pdf</code> — browser force-downloads<br>' +
+          '• <strong>Google Drive sharing URLs</strong> like <code>https://drive.google.com/file/d/.../view</code> — auto-converted to direct download. The Drive file must be set to <em>"Anyone with the link can view"</em>.'
+        )
       );
     }
   },
@@ -3623,6 +3647,57 @@ function _navResolveUrl(url){
     external: false,
     href: 'javascript:void(0)',
     onclick: "showPage('" + safe + "');return false;"
+  };
+}
+
+// Resolve a download-link URL.
+//
+// Like _navResolveUrl but specialised for files. Accepts:
+//   - Google Drive sharing URL (https://drive.google.com/file/d/<ID>/view?usp=...)
+//     → converted to direct-download URL (https://drive.google.com/uc?export=download&id=<ID>)
+//   - Any other URL → passed through, with the `download` attribute hint
+//     so browsers force-download self-hosted files instead of navigating.
+//   - Internal slug → showPage() onclick (same as _navResolveUrl)
+//   - Empty/null → null
+//
+// Returns { external, href, onclick, download } where download is a bool
+// that callers can use to add the HTML `download` attribute.
+function _beResolveDownloadUrl(url){
+  if (!url) return null;
+  url = String(url).trim();
+  if (!url) return null;
+
+  // Drive sharing URL: extract file ID from /file/d/<ID>/ or /open?id=<ID>
+  var driveMatch = url.match(/^https?:\/\/(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([a-zA-Z0-9_-]{10,})/);
+  if (driveMatch) {
+    var fileId = driveMatch[1];
+    return {
+      external: true,
+      href: 'https://drive.google.com/uc?export=download&id=' + fileId,
+      onclick: null,
+      download: false  // Drive ignores the download attribute (cross-origin)
+    };
+  }
+
+  // Other external URL — http(s)/mailto/tel/anchor
+  if (/^(https?:|mailto:|tel:)/i.test(url) || url.charAt(0) === '#') {
+    return {
+      external: true,
+      href: url,
+      onclick: null,
+      download: /^https?:/i.test(url)  // hint download for http(s) only
+    };
+  }
+
+  // Treat as internal page slug
+  var slug = url.replace(/^\//, '').replace(/\.html?$/i, '');
+  if (slug === '' || slug === 'index' || slug === 'petrodek') slug = 'home';
+  var safe = slug.replace(/'/g, "\\'");
+  return {
+    external: false,
+    href: 'javascript:void(0)',
+    onclick: "showPage('" + safe + "');return false;",
+    download: false
   };
 }
 
