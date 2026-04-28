@@ -3513,6 +3513,268 @@ var BLOCK_TYPES = {
     }
   },
 
+  'single-image': {
+    label: 'Single Image',
+    icon: '🖼',
+    desc: 'A standalone image with optional caption. Good for infographics, charts, and hero photos that should display large and uninterrupted.',
+    defaults: function(){
+      return {
+        image_url: '',
+        image_alt: '',
+        caption: '',
+        max_width: 'medium',
+        align: 'center',
+        rounded: true,
+        shadow: true,
+        bg_preset: 'default',
+        bg_custom: '#f8fafc'
+      };
+    },
+    render: function(data){
+      var bg = _beBackgroundCSS(data);
+      // Width caps. "Full" still respects the standard 1200px content frame
+      // — i.e. it spans the full content column, not the viewport edge-to-edge.
+      var widthCap = data.max_width === 'small'  ? '480px'
+                  : data.max_width === 'medium' ? '720px'
+                  : data.max_width === 'large'  ? '960px'
+                  : '1200px';  // 'full'
+      var alignCss = data.align === 'left'  ? 'margin-left:0;margin-right:auto;'
+                  : data.align === 'right' ? 'margin-left:auto;margin-right:0;'
+                  : 'margin-left:auto;margin-right:auto;';
+      var radius = data.rounded === false ? '0' : '8px';
+      var shadow = data.shadow === false ? '' : 'box-shadow:0 6px 30px rgba(10,22,40,.12);';
+      var captionColor = bg.isDark ? 'rgba(255,255,255,.75)' : 'var(--mid)';
+      var imageHtml;
+      if (data.image_url) {
+        imageHtml =
+          '<img src="' + beEscape(data.image_url) + '" ' +
+              'alt="' + beEscape(data.image_alt || '') + '" ' +
+              'style="display:block;width:100%;height:auto;border-radius:' + radius + ';' + shadow + '"/>';
+      } else {
+        imageHtml =
+          '<div style="aspect-ratio:16/9;background:' + (bg.isDark ? 'rgba(255,255,255,.06)' : '#f0f4f8') + ';' +
+              'border:2px dashed ' + (bg.isDark ? 'rgba(255,255,255,.2)' : '#cfd8e3') + ';' +
+              'border-radius:' + radius + ';display:flex;align-items:center;justify-content:center;' +
+              'color:' + (bg.isDark ? 'rgba(255,255,255,.5)' : '#aabbc8') + ';font-size:.85rem;">' +
+            'No image yet — paste a URL into the Image URL field' +
+          '</div>';
+      }
+      var captionHtml = data.caption
+        ? '<figcaption style="font-size:.82rem;color:' + captionColor + ';margin-top:.7rem;text-align:' + (data.align || 'center') + ';line-height:1.5;">' + beEscape(data.caption) + '</figcaption>'
+        : '';
+      return (
+        '<div style="' + bg.wrapStyle + 'padding:50px 5%;">' +
+          '<figure style="max-width:' + widthCap + ';' + alignCss + 'margin-top:0;margin-bottom:0;">' +
+            imageHtml + captionHtml +
+          '</figure>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      return (
+        beField(idPrefix, 'Image URL', 'image_url', data.image_url, {placeholder:'https://res.cloudinary.com/petrodek/image/upload/...'}) +
+        beField(idPrefix, 'Image alt text', 'image_alt', data.image_alt, {placeholder:'For screen readers (describes the image)'}) +
+        beField(idPrefix, 'Caption (optional)', 'caption', data.caption, {type:'textarea', rows:2}) +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
+          beField(idPrefix, 'Max width', 'max_width', data.max_width || 'medium', {
+            type:'select',
+            options:[
+              {value:'small',  label:'Small — 480px'},
+              {value:'medium', label:'Medium — 720px'},
+              {value:'large',  label:'Large — 960px'},
+              {value:'full',   label:'Full — 1200px'}
+            ]
+          }) +
+          beField(idPrefix, 'Alignment', 'align', data.align || 'center', {
+            type:'select',
+            options:[
+              {value:'left',   label:'Left'},
+              {value:'center', label:'Center'},
+              {value:'right',  label:'Right'}
+            ]
+          }) +
+        '</div>' +
+        '<div style="display:flex;gap:1rem;margin:.4rem 0 .6rem;">' +
+          '<label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;">' +
+            '<input type="checkbox" ' + (data.rounded !== false ? 'checked' : '') + ' onchange="beUpdateBlockField(\'' + idPrefix + '\',\'rounded\',this.checked)"/> Rounded corners' +
+          '</label>' +
+          '<label style="display:flex;align-items:center;gap:.4rem;font-size:.84rem;cursor:pointer;">' +
+            '<input type="checkbox" ' + (data.shadow !== false ? 'checked' : '') + ' onchange="beUpdateBlockField(\'' + idPrefix + '\',\'shadow\',this.checked)"/> Drop shadow' +
+          '</label>' +
+        '</div>' +
+        beBgPicker(idPrefix, data) +
+        beInfoBox('Image displays at its natural aspect ratio, capped to the chosen max width. Tall infographics look great at <strong>Medium</strong> or <strong>Small</strong>; wide screenshots and photos at <strong>Large</strong> or <strong>Full</strong>.')
+      );
+    }
+  },
+
+  'side-by-side': {
+    label: 'Side-by-Side',
+    icon: '⥃',
+    desc: 'Two columns where each can be either an image or a text block. Mix and match for image+image, image+text, or text+text layouts.',
+    defaults: function(){
+      return {
+        ratio: 'equal',
+        gap: 'standard',
+        align: 'center',
+        // Column 1
+        col1_type: 'image',
+        col1_image_url: '',
+        col1_image_alt: '',
+        col1_caption: '',
+        col1_eyebrow: '',
+        col1_heading: 'Left column heading',
+        col1_body: 'Left column body text — replace this with your content.',
+        // Column 2
+        col2_type: 'text',
+        col2_image_url: '',
+        col2_image_alt: '',
+        col2_caption: '',
+        col2_eyebrow: '',
+        col2_heading: 'Right column heading',
+        col2_body: 'Right column body text — replace this with your content.',
+        // Background
+        bg_preset: 'default',
+        bg_custom: '#f8fafc'
+      };
+    },
+    render: function(data){
+      var bg = _beBackgroundCSS(data);
+      var ratio = data.ratio === 'wide-left'  ? '2fr 1fr'
+                : data.ratio === 'wide-right' ? '1fr 2fr'
+                : '1fr 1fr';
+      var gap = data.gap === 'tight' ? '1rem'
+              : data.gap === 'wide'  ? '4rem'
+              : '2.5rem'; // standard
+      var alignItems = data.align === 'top'    ? 'start'
+                    : data.align === 'bottom' ? 'end'
+                    : 'center';
+      var headingColor = bg.headingColor;
+      var bodyColor    = bg.textColor;
+      var bodyOpacity  = bg.isDark ? '.9' : '.85';
+      var captionColor = bg.isDark ? 'rgba(255,255,255,.7)' : 'var(--mid)';
+
+      function renderColumn(colNum){
+        var prefix = 'col' + colNum + '_';
+        var type = data[prefix + 'type'] || (colNum === 1 ? 'image' : 'text');
+        if (type === 'image') {
+          var url = data[prefix + 'image_url'] || '';
+          var alt = data[prefix + 'image_alt'] || '';
+          var cap = data[prefix + 'caption'] || '';
+          var img;
+          if (url) {
+            img = '<img src="' + beEscape(url) + '" alt="' + beEscape(alt) + '" ' +
+                  'style="display:block;width:100%;height:auto;border-radius:8px;"/>';
+          } else {
+            img = '<div style="aspect-ratio:4/3;background:' + (bg.isDark ? 'rgba(255,255,255,.06)' : '#f0f4f8') + ';' +
+                    'border:2px dashed ' + (bg.isDark ? 'rgba(255,255,255,.2)' : '#cfd8e3') + ';' +
+                    'border-radius:8px;display:flex;align-items:center;justify-content:center;' +
+                    'color:' + (bg.isDark ? 'rgba(255,255,255,.5)' : '#aabbc8') + ';font-size:.85rem;">' +
+                  'No image yet</div>';
+          }
+          var capHtml = cap
+            ? '<div style="font-size:.78rem;color:' + captionColor + ';margin-top:.5rem;line-height:1.5;">' + beEscape(cap) + '</div>'
+            : '';
+          return '<div>' + img + capHtml + '</div>';
+        } else {
+          var eyebrow = data[prefix + 'eyebrow'] || '';
+          var heading = data[prefix + 'heading'] || '';
+          var body    = data[prefix + 'body'] || '';
+          var eyebrowHtml = eyebrow
+            ? '<div style="font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:.6rem;">' + beEscape(eyebrow) + '</div>'
+            : '';
+          var headingHtml = heading
+            ? '<h3 style="font-size:1.5rem;font-weight:700;color:' + headingColor + ';margin:0 0 .8rem;line-height:1.25;">' + beEscape(heading) + '</h3>'
+            : '';
+          var bodyHtml = body
+            ? '<div style="font-size:.95rem;line-height:1.75;color:' + bodyColor + ';opacity:' + bodyOpacity + ';">' + beEscape(body) + '</div>'
+            : '';
+          return '<div>' + eyebrowHtml + headingHtml + bodyHtml + '</div>';
+        }
+      }
+
+      return (
+        '<div style="' + bg.wrapStyle + 'padding:60px 5%;">' +
+          '<div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:' + ratio + ';gap:' + gap + ';align-items:' + alignItems + ';">' +
+            renderColumn(1) + renderColumn(2) +
+          '</div>' +
+        '</div>'
+      );
+    },
+    edit: function(data, idPrefix){
+      function columnFields(colNum){
+        var prefix = 'col' + colNum + '_';
+        var type = data[prefix + 'type'] || (colNum === 1 ? 'image' : 'text');
+        var label = colNum === 1 ? 'Left column' : 'Right column';
+        // Container for image fields and text fields. We render both,
+        // and use display:none/grid to toggle which is visible. This way
+        // the toggle is instant — no full edit-form re-render that would
+        // steal focus from whatever the admin is typing in.
+        var typeSelect = beField(idPrefix, label + ' — type', prefix + 'type', type, {
+          type:'select',
+          options:[
+            {value:'image', label:'🖼  Image'},
+            {value:'text',  label:'📝  Text'}
+          ]
+        });
+        var imgFieldsId = idPrefix + '-' + prefix + 'imgfields';
+        var txtFieldsId = idPrefix + '-' + prefix + 'txtfields';
+        var imgDisplay = (type === 'image') ? '' : 'display:none;';
+        var txtDisplay = (type === 'text')  ? '' : 'display:none;';
+        var imgFields =
+          '<div id="' + imgFieldsId + '" style="' + imgDisplay + '">' +
+            beField(idPrefix, label + ' — image URL', prefix + 'image_url', data[prefix + 'image_url'], {placeholder:'https://res.cloudinary.com/...'}) +
+            beField(idPrefix, label + ' — alt text', prefix + 'image_alt', data[prefix + 'image_alt'], {placeholder:'Describe the image'}) +
+            beField(idPrefix, label + ' — caption (optional)', prefix + 'caption', data[prefix + 'caption']) +
+          '</div>';
+        var txtFields =
+          '<div id="' + txtFieldsId + '" style="' + txtDisplay + '">' +
+            beField(idPrefix, label + ' — eyebrow (optional)', prefix + 'eyebrow', data[prefix + 'eyebrow']) +
+            beField(idPrefix, label + ' — heading', prefix + 'heading', data[prefix + 'heading']) +
+            beField(idPrefix, label + ' — body', prefix + 'body', data[prefix + 'body'], {type:'textarea', rows:5}) +
+          '</div>';
+        return (
+          '<div style="border:1px solid #e8eef5;border-radius:6px;padding:.7rem .8rem;margin-bottom:.6rem;background:#f8fafc;">' +
+            '<div style="font-size:.75rem;font-weight:700;color:#6677aa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem;">' + label + '</div>' +
+            typeSelect + imgFields + txtFields +
+          '</div>'
+        );
+      }
+      return (
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;">' +
+          beField(idPrefix, 'Column ratio', 'ratio', data.ratio || 'equal', {
+            type:'select',
+            options:[
+              {value:'equal',      label:'Equal — 1:1'},
+              {value:'wide-left',  label:'Wider left — 2:1'},
+              {value:'wide-right', label:'Wider right — 1:2'}
+            ]
+          }) +
+          beField(idPrefix, 'Gap', 'gap', data.gap || 'standard', {
+            type:'select',
+            options:[
+              {value:'tight',    label:'Tight'},
+              {value:'standard', label:'Standard'},
+              {value:'wide',     label:'Wide'}
+            ]
+          }) +
+          beField(idPrefix, 'Vertical align', 'align', data.align || 'center', {
+            type:'select',
+            options:[
+              {value:'top',    label:'Top'},
+              {value:'center', label:'Center'},
+              {value:'bottom', label:'Bottom'}
+            ]
+          }) +
+        '</div>' +
+        columnFields(1) +
+        columnFields(2) +
+        beBgPicker(idPrefix, data) +
+        beInfoBox('Each column independently shows an <strong>image</strong> or a <strong>text block</strong>. Combine them however you like — image+image for comparisons, image+text for visual explainers, text+text for two related ideas.')
+      );
+    }
+  },
+
   'footer': {
     label: 'Site Footer',
     icon: '⬇',
@@ -4113,6 +4375,17 @@ function beUpdateBlockField(blockId, key, value){
     try {
       var wrap = document.getElementById(blockId + '-bgcustom');
       if (wrap) wrap.style.display = (value === 'custom') ? 'grid' : 'none';
+    } catch(e){ /* non-critical */ }
+  }
+  // Special case: side-by-side column type toggle. When col1_type / col2_type
+  // changes, swap which set of fields (image vs text) is visible.
+  if (key === 'col1_type' || key === 'col2_type'){
+    try {
+      var prefix = key === 'col1_type' ? 'col1_' : 'col2_';
+      var imgWrap = document.getElementById(blockId + '-' + prefix + 'imgfields');
+      var txtWrap = document.getElementById(blockId + '-' + prefix + 'txtfields');
+      if (imgWrap) imgWrap.style.display = (value === 'image') ? '' : 'none';
+      if (txtWrap) txtWrap.style.display = (value === 'text')  ? '' : 'none';
     } catch(e){ /* non-critical */ }
   }
   beRenderPreview();
