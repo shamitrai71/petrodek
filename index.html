@@ -2381,8 +2381,632 @@ function adminSectionInit(sec) {
 
 // Pages where admins can use block editing. Gate this carefully —
 // enabling a slug here means the stored blocks[] will OVERRIDE the
-// built-in PAGES[slug].html for site visitors.
-var BLOCK_EDITOR_SLUGS = ['rim-seals'];
+// built-in PAGES[slug].html for site visitors. Pages that haven't
+// been seeded yet will auto-populate from _PAGE_SEEDS on first view.
+var BLOCK_EDITOR_SLUGS = [
+  'home',
+  'products',
+  'rim-seals',
+  'mechanical-shoe-seals',
+  'liquid-mounted-primary-seals',
+  'vapour-mounted-primary-seals',
+  'secondary-seals',
+  'wiper-seals',
+  'seal-fittings',
+  'lightning-protection',
+  'blog',
+  'contact',
+  'about'
+];
+
+// Helper: produce a fresh block of the given type, deeply merging
+// `overrides` over the type's defaults. Used by _PAGE_SEEDS to keep
+// page definitions readable.
+function _seedBlock(type, overrides){
+  var spec = BLOCK_TYPES[type];
+  if (!spec){
+    console.error('_seedBlock: unknown type ' + type);
+    return null;
+  }
+  var data = spec.defaults();
+  if (overrides){
+    for (var k in overrides){
+      if (Object.prototype.hasOwnProperty.call(overrides, k)){
+        data[k] = overrides[k];
+      }
+    }
+  }
+  return { id: beNewBlockId(), type: type, data: data };
+}
+
+// Page seeds. Each entry is an array of block-builder functions. Built
+// lazily — `_PAGE_SEEDS[slug]()` returns a fresh array of blocks. We
+// build them on-demand because some helpers (beNewBlockId, BLOCK_TYPES)
+// must be initialised first.
+//
+// Migration philosophy (Path B):
+// - Single column, no sidebars (sidebars don't translate to mobile)
+// - No factsheet/blog widgets in product page sidebars
+// - Use the existing block types: hero-page, image-text, specs,
+//   features-grid, related-grid, cta-box, plus the new ones we built
+//   earlier (single-image, side-by-side, faq, etc.)
+// - Reasonable defaults extracted from existing PAGES HTML where possible
+//
+// Pages get auto-seeded when admin first opens the editor for them, OR
+// when a visitor first lands on them and there's no saved page yet.
+function _PAGE_SEEDS(slug){
+  var fns = {
+
+    // ─── HOME ─────────────────────────────────────────────────────────
+    'home': function(){ return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', {
+        eyebrow: 'Best Available Emission Control Technologies',
+        title1: 'Floating',
+        title2: 'Roof Tanks',
+        desc: 'Rim Seals · Seal Fittings · Lightning Protection. An ESRAI GROUP Enterprise.',
+        breadcrumb: [{ label:'Home', slug:'' }]
+      }),
+      _seedBlock('stats-strip', {
+        background: 'light',
+        items: [
+          { num:'25+',  label:'Years Experience' },
+          { num:'200+', label:'Installations' },
+          { num:'4',    label:'Major Clients' },
+          { num:'100%', label:'API Compliant' }
+        ]
+      }),
+      _seedBlock('section-header', {
+        label: 'What We Offer',
+        title: 'Emission Control Solutions',
+        align: 'center'
+      }),
+      _seedBlock('related-grid', {
+        cards: [
+          { icon:'⬡', tag:'Primary & Secondary', title:'Rim Seals', desc:'High-performance primary and secondary rim seals engineered for floating roof tanks. Minimise VOC vapour emissions while ensuring full regulatory compliance.', target:'rim-seals' },
+          { icon:'⚙', tag:'Tank Roof Fittings', title:'Seal Fittings', desc:'Precision-engineered fittings designed to complement and support the full range of rim seal systems. Ensuring secure installation and long-term reliability.', target:'seal-fittings' },
+          { icon:'⚡', tag:'Safety Systems', title:'Lightning Protection', desc:'Advanced lightning protection and bonding systems for external floating roof tanks. Protecting assets, personnel, and the environment from electrical hazards.', target:'lightning-protection' }
+        ]
+      }),
+      _seedBlock('features-grid', {
+        columns: 3,
+        bg_preset: 'soft',
+        items: [
+          { icon:'📡', title:'Responsive', desc:'Fast turnaround on technical enquiries, on-site assessments, and spare parts dispatch — wherever your facility is located across India.' },
+          { icon:'🏆', title:'Quality', desc:'All products manufactured to international standards with rigorous quality assurance at every stage, ensuring full specification compliance.' },
+          { icon:'🔧', title:'Technical Support', desc:'Dedicated engineering teams providing installation guidance, emissions compliance advice, and ongoing maintenance support.' },
+          { icon:'📋', title:'API Compliant', desc:'All seal systems designed and supplied in full compliance with API MPMS Chapter 19.2 emission factor calculation standards.' },
+          { icon:'🛡', title:'Safety First', desc:'Every product and installation follows strict safety protocols — protecting your workforce, assets, and surrounding environment.' },
+          { icon:'🌱', title:'Emission Reduction', desc:'Our sealing solutions directly reduce VOC emissions from petroleum storage — contributing to cleaner operations and regulatory compliance.' }
+        ]
+      }),
+      _seedBlock('image-text', {
+        eyebrow: 'About Us',
+        title: 'About Sealworks',
+        body: 'Sealworks is an ESRAI GROUP Enterprise — a trusted name in floating roof tank rim seal systems with decades of specialised engineering expertise serving India\'s petroleum refining and petrochemical industry. We combine deep domain knowledge, rigorous quality standards, and hands-on installation experience to deliver best-in-class emission control solutions.',
+        image_side: 'right',
+        image_url: ''
+      }),
+      _seedBlock('logo-cloud', {
+        eyebrow: 'Who We Serve',
+        title: 'Our Clients',
+        sub: 'Trusted by India\'s leading petroleum refiners, petrochemical manufacturers, and engineering contractors.',
+        items: [
+          { logo:'https://petrodek.com/wp-content/uploads/2026/01/269711-300x300.jpg', name:'Reliance Industries Limited', country:'India', desc:'One of India\'s largest integrated energy and petrochemicals companies.' },
+          { logo:'https://petrodek.com/wp-content/uploads/2026/01/OIP.webp', name:'Nayara Energy Limited', country:'India', desc:'Operators of one of India\'s largest single-location refineries.' },
+          { logo:'https://petrodek.com/wp-content/uploads/2026/01/BnR_logo_png-240x300.png', name:'Bridge & Roof Co. (India) Ltd.', country:'India', desc:'A leading EPC contractor with extensive experience in petroleum tank projects.' },
+          { logo:'https://petrodek.com/wp-content/uploads/2026/01/images.png', name:'Haldia Petrochemicals Limited', country:'India', desc:'A major petrochemical manufacturer requiring best-available emission control technologies.' }
+        ]
+      }),
+      _seedBlock('cta-box', {
+        heading: 'Connect to Tank Protocol',
+        body: 'Calculate VOC emissions from floating roof tanks based on seal type, tank geometry, and operational parameters.',
+        btn_primary_label: 'Connect & Join →',
+        btn_primary_target: '',
+        btn_outline_label: 'Calculate Emissions',
+        btn_outline_url: 'http://www.tankprotocol.com'
+      }),
+      _seedBlock('footer')
+    ]; },
+
+    // ─── PRODUCTS OVERVIEW ────────────────────────────────────────────
+    'products': function(){ return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', {
+        eyebrow: 'What We Offer',
+        title1: 'Our Product',
+        title2: 'Range',
+        desc: 'Specialised rim seals, seal fittings, and lightning protection systems — engineered for external floating roof petroleum storage tanks.',
+        breadcrumb: [
+          { label:'Home', slug:'home' },
+          { label:'Products', slug:'' }
+        ]
+      }),
+      _seedBlock('section-header', {
+        label: 'Product Categories',
+        title: 'Emission Control Solutions',
+        align: 'center'
+      }),
+      _seedBlock('related-grid', {
+        cards: [
+          { icon:'⬡', tag:'Primary & Secondary', title:'Rim Seals', desc:'Full range of mechanical shoe, liquid-mounted, vapour-mounted, secondary, and wiper seals for EFR tanks.', target:'rim-seals' },
+          { icon:'⚙', tag:'Tank Roof Fittings', title:'Seal Fittings', desc:'Gauging hatches, bleeder vents, deck drain valves, roof legs, and all tank roof accessories.', target:'seal-fittings' },
+          { icon:'⚡', tag:'Safety Systems', title:'Lightning Protection', desc:'API 545 compliant bonding and grounding systems for floating roof tank electrical safety.', target:'lightning-protection' }
+        ]
+      }),
+      _seedBlock('cta-box', {
+        heading: 'Need Help Selecting the Right Product?',
+        body: 'Our technical team can identify the correct rim seal and fitting configuration for your specific tank dimensions and stored product.',
+        btn_primary_label: 'Contact Our Engineers →',
+        btn_primary_target: 'contact',
+        btn_outline_label: '',
+        btn_outline_url: ''
+      }),
+      _seedBlock('footer')
+    ]; },
+
+    // ─── RIM SEALS ─────────────────────────────────────────────────────
+    // (Already seeded — admin built this. We provide a default seed
+    // anyway so visitors who land here while admin's data isn't loaded
+    // see a sensible fallback. The migration logic skips this slug if
+    // it already has stored blocks.)
+    'rim-seals': function(){ return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', {
+        eyebrow: 'Products › Rim Seals',
+        title1: 'Rim Seal',
+        title2: 'Systems',
+        desc: 'A complete range of primary and secondary rim seals for external floating roof tanks — engineered to minimise VOC vapour emissions and maximise operational life.',
+        breadcrumb: [
+          { label:'Home', slug:'home' },
+          { label:'Products', slug:'products' },
+          { label:'Rim Seals', slug:'' }
+        ]
+      }),
+      _seedBlock('section-header', {
+        label: 'Seal Types Available',
+        title: 'Choose Your Seal Type',
+        align: 'center'
+      }),
+      _seedBlock('related-grid', {
+        cards: [
+          { icon:'🔩', tag:'Primary Seal',   title:'Mechanical Shoe Seals',     desc:'Metallic shoe plate maintains continuous shell contact for maximum VOC emission control.', target:'mechanical-shoe-seals' },
+          { icon:'💧', tag:'Primary Seal',   title:'Liquid Mounted Primary',    desc:'Foam-filled seals floating on the product surface for effective vapour barrier.',         target:'liquid-mounted-primary-seals' },
+          { icon:'☁',  tag:'Primary Seal',   title:'Vapour Mounted Primary',    desc:'Above-product mounted seals for cost-effective primary sealing in wide annular clearances.', target:'vapour-mounted-primary-seals' },
+          { icon:'🛡', tag:'Secondary Seal', title:'Secondary Seals',           desc:'Additional vapour barrier installed above the primary seal — reduces combined emissions by up to 96%.', target:'secondary-seals' },
+          { icon:'🔄', tag:'Wiper Seal',     title:'Wiper Seals',               desc:'Periphery-mounted wiper maintains shell contact to prevent product carry-up during roof movement.', target:'wiper-seals' }
+        ]
+      }),
+      _seedBlock('cta-box', {
+        heading: 'Request a Technical Quotation',
+        body: 'Provide your tank diameter, annular clearance and product stored — we\'ll recommend the optimal seal configuration.',
+        btn_primary_label: 'Get a Quote →',
+        btn_primary_target: 'contact',
+        btn_outline_label: 'Calculate Emissions',
+        btn_outline_url: 'http://www.tankprotocol.com'
+      }),
+      _seedBlock('footer')
+    ]; },
+
+    // ─── MECHANICAL SHOE SEALS ────────────────────────────────────────
+    'mechanical-shoe-seals': function(){ return _productPageSeed({
+      crumb_label: 'Mechanical Shoe Seals',
+      eyebrow: 'Products › Rim Seals › Mechanical Shoe Seals',
+      title1: 'Mechanical Shoe',
+      title2: 'Seals',
+      hero_desc: 'Metallic primary seals using a flexible shoe plate that maintains continuous contact with the tank shell — delivering industry-leading VOC emission control across all roof travel positions.',
+      crumb_parent: 'rim-seals',
+      crumb_parent_label: 'Rim Seals',
+      product_title: 'Mechanical Shoe Seals',
+      intro_body: 'Mechanical shoe seals are the most widely deployed primary sealing system for external floating roof tanks. The precision-formed metallic shoe plate is spring-loaded or weight-loaded to maintain continuous, firm contact with the tank shell across the full range of roof travel and under all product level variations. The shoe assembly rides on a compression spring or counterweight mechanism, compensating for shell out-of-roundness and weld seams.',
+      specs_rows: [
+        { param:'Tank Shell Clearance', value:'12 – 25 mm typical' },
+        { param:'Operating Temperature', value:'-40°C to +120°C' },
+        { param:'Roof Travel Range', value:'Full tank height' },
+        { param:'Shell Out-of-Roundness', value:'Up to ±25 mm accommodated' },
+        { param:'Shoe Material', value:'Carbon Steel / SS 304 / SS 316' },
+        { param:'Tip Seal Material', value:'Resilient foam / PTFE wiper' },
+        { param:'Spring Type', value:'Stainless steel compression spring' },
+        { param:'Applicable Standards', value:'API 650, API MPMS Ch. 19.2' }
+      ],
+      features: [
+        { icon:'🎯', title:'Maximum Shell Contact',     desc:'Spring-loaded shoe maintains continuous contact with the shell regardless of roof position, product level, or shell deviation.' },
+        { icon:'🛡', title:'Superior Emission Control', desc:'Lowest emission factor (Ksh) among primary seal types per API MPMS Chapter 19.2 methodology.' },
+        { icon:'🔧', title:'In-Service Maintenance',    desc:'Individual shoe assemblies can be inspected, adjusted, and replaced without taking the tank out of service.' },
+        { icon:'⚙',  title:'Custom Fabricated',         desc:'Each seal set is manufactured to the exact diameter and clearance of your tank, measured on-site or from drawings.' },
+        { icon:'🌡', title:'Wide Temperature Range',    desc:'Performs reliably across full petrochemical operating temperature range from cryogenic-adjacent to high-temperature crude service.' },
+        { icon:'📋', title:'Full Documentation',        desc:'Material test certificates, weld inspection records, and dimensional reports supplied with every order.' }
+      ]
+    }); },
+
+    // ─── LIQUID MOUNTED PRIMARY SEALS ─────────────────────────────────
+    'liquid-mounted-primary-seals': function(){ return _productPageSeed({
+      crumb_label: 'Liquid Mounted Primary Seals',
+      eyebrow: 'Products › Rim Seals › Liquid Mounted',
+      title1: 'Liquid Mounted',
+      title2: 'Primary Seals',
+      hero_desc: 'Foam-filled or liquid-filled seals that float directly on the stored product surface — providing a continuous vapour barrier across the full annular space between roof rim and tank shell.',
+      crumb_parent: 'rim-seals',
+      crumb_parent_label: 'Rim Seals',
+      product_title: 'Liquid Mounted Primary Seals',
+      intro_body: 'Liquid mounted primary seals rest directly on the stored liquid product, filling the annular rim space between the floating roof deck rim and the tank shell. The foam batt or liquid-filled envelope provides positive buoyancy and maintains the seal profile under all product level changes. The outer cover wipes the tank shell and forms the primary vapour barrier.',
+      specs_rows: [
+        { param:'Seal Type',          value:'Foam-filled / Liquid-filled' },
+        { param:'Annular Clearance',  value:'100 – 300 mm' },
+        { param:'Cover Material',     value:'Reinforced fabric / PTFE coated / SS' },
+        { param:'Foam Density',       value:'24 – 48 kg/m³ (foam type)' },
+        { param:'Operating Temperature', value:'-20°C to +80°C' },
+        { param:'Roof Travel',        value:'Full stroke accommodated' },
+        { param:'Standards',          value:'API 650 Appendix C' },
+        { param:'Replacement',        value:'In-service foam replacement possible' }
+      ],
+      features: [
+        { icon:'💧', title:'Floats on Product',          desc:'Self-buoyant design rests on the stored liquid, automatically adjusting to product level changes without mechanical actuation.' },
+        { icon:'⬡', title:'Large Clearance Coverage',   desc:'Ideal for tanks with annular rim spaces from 100 mm to 300 mm where shoe-type seals may not be practical.' },
+        { icon:'🔄', title:'Simple Construction',        desc:'Fewer moving parts than mechanical shoe seals, reducing maintenance requirements and inspection points.' },
+        { icon:'🛡', title:'Compatible with Secondary',  desc:'Designed to accept a secondary seal above it, achieving combined emission factors compliant with strictest regulations.' },
+        { icon:'🌡', title:'Product Compatibility',      desc:'Available in materials compatible with crude oil, diesel, naphtha, and most other petroleum products.' },
+        { icon:'📋', title:'Cost Effective',             desc:'Lower fabrication cost than mechanical shoe seals while still achieving good primary seal emission performance.' }
+      ]
+    }); },
+
+    // ─── VAPOUR MOUNTED PRIMARY SEALS ─────────────────────────────────
+    'vapour-mounted-primary-seals': function(){ return _productPageSeed({
+      crumb_label: 'Vapour Mounted Primary Seals',
+      eyebrow: 'Products › Rim Seals › Vapour Mounted',
+      title1: 'Vapour Mounted',
+      title2: 'Primary Seals',
+      hero_desc: 'Above-product foam or fabric primary seals — cost-effective sealing for tanks with wider annular rim spaces where the seal does not contact the stored liquid.',
+      crumb_parent: 'rim-seals',
+      crumb_parent_label: 'Rim Seals',
+      product_title: 'Vapour Mounted Primary Seals',
+      intro_body: 'Vapour mounted primary seals are positioned above the stored product surface, suspended from the roof rim. They span the annular gap between the floating roof and the tank shell using a flexible foam or fabric envelope. While their emission performance is lower than liquid-mounted or shoe-type primary seals, they offer a cost-effective sealing option for retrofits, smaller tanks, and applications where regulatory requirements allow.',
+      specs_rows: [
+        { param:'Seal Position',      value:'Above product surface (vapour space)' },
+        { param:'Annular Clearance',  value:'150 – 400 mm' },
+        { param:'Cover Material',     value:'Reinforced fabric / PTFE coated' },
+        { param:'Foam Type',          value:'Closed-cell PE / urethane' },
+        { param:'Operating Temperature', value:'-20°C to +60°C' },
+        { param:'Standards',          value:'API 650 Appendix C' },
+        { param:'Best For',           value:'Retrofits, IFR tanks, low-volatility products' }
+      ],
+      features: [
+        { icon:'💰', title:'Most Economical',         desc:'Lowest installed cost among primary seal types — ideal for budget-constrained retrofits.' },
+        { icon:'🔧', title:'Simple Installation',      desc:'No product contact or buoyancy concerns — installation is straightforward and faster.' },
+        { icon:'⚖',  title:'Lightweight',              desc:'Lower load on the roof structure compared to liquid-mounted or mechanical seals.' },
+        { icon:'🌡', title:'Internal Floating Roofs',  desc:'Particularly suited to IFR tanks where the seal works in protected vapour space.' },
+        { icon:'📋', title:'Standards Compliant',      desc:'Meets API 650 Appendix C requirements for primary sealing on suitable applications.' },
+        { icon:'🔄', title:'Easy Replacement',         desc:'Fabric covers and foam can be replaced during routine tank inspections.' }
+      ]
+    }); },
+
+    // ─── SECONDARY SEALS ──────────────────────────────────────────────
+    'secondary-seals': function(){ return _productPageSeed({
+      crumb_label: 'Secondary Seals',
+      eyebrow: 'Products › Rim Seals › Secondary',
+      title1: 'Secondary',
+      title2: 'Seals',
+      hero_desc: 'Additional vapour barriers mounted above the primary seal — combined primary + secondary configurations achieve up to 96% reduction in standing rim losses for the strictest regulatory environments.',
+      crumb_parent: 'rim-seals',
+      crumb_parent_label: 'Rim Seals',
+      product_title: 'Secondary Seals',
+      intro_body: 'Secondary seals are installed above the primary rim seal to provide a second vapour barrier across the annular rim space. They significantly reduce overall emissions by trapping any vapour that escapes past the primary seal. The most common types are compression-plate (rim-mounted) and shoe-mounted (riding on the primary seal), both of which are designed to maintain shell contact across the full range of roof movement.',
+      specs_rows: [
+        { param:'Seal Type',           value:'Compression plate / Shoe-mounted' },
+        { param:'Material',            value:'Stainless steel / fabric / PTFE' },
+        { param:'Operating Temperature', value:'-40°C to +120°C' },
+        { param:'Combined Emission Reduction', value:'Up to 96% with mechanical primary' },
+        { param:'Roof Travel',         value:'Full stroke accommodated' },
+        { param:'Standards',           value:'API 650, EPA 40 CFR Part 60 Subpart Rb' },
+        { param:'Compatibility',       value:'Mounts above any primary seal type' }
+      ],
+      features: [
+        { icon:'🛡', title:'98% Emission Reduction',   desc:'Pairing a primary MSS with a secondary compression plate seal creates a near-impenetrable barrier for VOCs.' },
+        { icon:'📜', title:'Regulatory Necessity',     desc:'Essential for meeting EPA 40 CFR Part 60 Subpart Rb standards and provides a vital secondary dam against rim fires.' },
+        { icon:'☀',  title:'Weather & UV Shielding',  desc:'Protects the primary seal fabric from rain, ice, sun damage, and temperature extremes — extending the entire system\'s life.' },
+        { icon:'🔥', title:'Rim Fire Protection',      desc:'Acts as a barrier in the event of a rim fire, reducing the spread of vapour-air mixtures.' },
+        { icon:'⚙',  title:'Universal Mounting',       desc:'Can be installed above any primary seal type — mechanical shoe, liquid-mounted, or vapour-mounted.' },
+        { icon:'🔧', title:'Field Replaceable',        desc:'Modular design allows section-by-section replacement during scheduled inspections.' }
+      ]
+    }); },
+
+    // ─── WIPER SEALS ──────────────────────────────────────────────────
+    'wiper-seals': function(){ return _productPageSeed({
+      crumb_label: 'Wiper Seals',
+      eyebrow: 'Products › Rim Seals › Wiper',
+      title1: 'Wiper',
+      title2: 'Seals',
+      hero_desc: 'Periphery-mounted wiper seals that maintain shell contact during roof travel, preventing product carry-up and providing a final wiping action against the tank wall.',
+      crumb_parent: 'rim-seals',
+      crumb_parent_label: 'Rim Seals',
+      product_title: 'Wiper Seals',
+      intro_body: 'Wiper seals are continuous flexible strips mounted on the periphery of a floating roof, designed to maintain wiping contact with the tank shell. They prevent product residue from being carried up the shell during roof descent and serve as a final mechanical barrier against vapour and dust intrusion.',
+      specs_rows: [
+        { param:'Material',           value:'PTFE-coated fabric / nitrile rubber' },
+        { param:'Wiper Tip Profile',  value:'Single-lip or double-lip' },
+        { param:'Operating Temperature', value:'-30°C to +100°C' },
+        { param:'Shell Contact Force', value:'Spring-loaded for consistent pressure' },
+        { param:'Length',             value:'Continuous — fabricated to tank circumference' },
+        { param:'Replacement',        value:'In-service section replacement' }
+      ],
+      features: [
+        { icon:'🔄', title:'Constant Shell Contact',  desc:'Spring-loaded design maintains uniform wiping pressure regardless of shell irregularities.' },
+        { icon:'🛡', title:'Prevents Product Carry-up',desc:'Wipes the tank wall clean during roof descent, eliminating product residue accumulation.' },
+        { icon:'🌡', title:'Wide Service Range',      desc:'Available in materials suited to crude oil, refined products, and aromatics.' },
+        { icon:'⚙',  title:'PTFE Coated Option',      desc:'Low-friction PTFE coating prevents tacky crude products from sticking to and damaging the wiper.' },
+        { icon:'🔧', title:'Easy Maintenance',        desc:'Replaceable in sections without draining the tank.' },
+        { icon:'📋', title:'Custom Length',           desc:'Fabricated continuously to your tank\'s exact circumference.' }
+      ]
+    }); },
+
+    // ─── SEAL FITTINGS ────────────────────────────────────────────────
+    'seal-fittings': function(){ return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', {
+        eyebrow: 'Products',
+        title1: 'Seal',
+        title2: 'Fittings',
+        desc: 'Precision-engineered tank roof accessories — gauging hatches, bleeder vents, deck drain valves, roof legs, and all the fittings that complete a floating roof installation.',
+        breadcrumb: [
+          { label:'Home', slug:'home' },
+          { label:'Products', slug:'products' },
+          { label:'Seal Fittings', slug:'' }
+        ]
+      }),
+      _seedBlock('section-header', {
+        label: 'Product Range',
+        title: 'Tank Roof Accessories',
+        align: 'center'
+      }),
+      _seedBlock('features-grid', {
+        columns: 3,
+        items: [
+          { icon:'🔍', title:'Gauging Hatches',     desc:'Sealed access ports for level gauging, sampling, and inspection without compromising the vapour barrier.' },
+          { icon:'💨', title:'Bleeder Vents',       desc:'Pressure-vacuum vents that protect the tank from over-pressure or vacuum during product movements.' },
+          { icon:'🚰', title:'Deck Drain Valves',   desc:'Self-draining valves that remove rainwater from the floating roof deck while maintaining vapour seal.' },
+          { icon:'🦵', title:'Roof Legs & Pads',    desc:'Adjustable roof support legs with cushioned pads for low-level resting positions during inspection.' },
+          { icon:'🔗', title:'Anti-Rotation Devices', desc:'Mechanical guides that prevent the floating roof from rotating, maintaining seal alignment.' },
+          { icon:'📏', title:'Gauge Wells',         desc:'Vertical pipes housing automatic level gauges, with internal seals to prevent vapour escape.' }
+        ]
+      }),
+      _seedBlock('two-column', {
+        eyebrow: 'Engineering Standards',
+        title: 'Built to Specification',
+        col1_heading: 'Materials of Construction',
+        col1_body: 'Carbon steel, stainless steel (SS 304/316), aluminium, and corrosion-resistant alloys — selected per service conditions and customer specification. Coatings and surface finishes include hot-dip galvanising, epoxy paint systems, and PTFE liners.',
+        col2_heading: 'Compliance',
+        col2_body: 'All fittings designed and manufactured to API 650, API MPMS Chapter 19.2, and customer-specified petroleum industry standards. Material test certificates, weld inspection records, and dimensional reports provided with every order.',
+        bg_preset: 'soft'
+      }),
+      _seedBlock('cta-box', {
+        heading: 'Specify Your Fittings',
+        body: 'Provide your tank dimensions and operating requirements — our engineers will detail the complete fitting set and offer a fixed-price quotation.',
+        btn_primary_label: 'Request Quotation →',
+        btn_primary_target: 'contact',
+        btn_outline_label: '',
+        btn_outline_url: ''
+      }),
+      _seedBlock('footer')
+    ]; },
+
+    // ─── LIGHTNING PROTECTION ─────────────────────────────────────────
+    'lightning-protection': function(){ return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', {
+        eyebrow: 'Products',
+        title1: 'Lightning',
+        title2: 'Protection',
+        desc: 'API 545 compliant bonding, grounding, and lightning protection systems for external floating roof tanks — protecting personnel, assets, and the environment from electrical hazards.',
+        breadcrumb: [
+          { label:'Home', slug:'home' },
+          { label:'Products', slug:'products' },
+          { label:'Lightning Protection', slug:'' }
+        ]
+      }),
+      _seedBlock('section-header', {
+        label: 'Why It Matters',
+        title: 'The Risk of Inadequate Bonding',
+        align: 'center'
+      }),
+      _seedBlock('image-text', {
+        eyebrow: 'Industry Context',
+        title: 'API RP 545 — A Direct Response',
+        body: 'API Recommended Practice 545 was published in direct response to a series of catastrophic floating roof tank fires caused by lightning strikes. The current standard mandates specific bonding requirements between the floating roof and the tank shell, ensuring rapid dissipation of induced electrical charge before vapour-air mixtures at the rim can ignite.',
+        image_side: 'right',
+        image_url: '',
+        bg_preset: 'soft'
+      }),
+      _seedBlock('features-grid', {
+        columns: 3,
+        items: [
+          { icon:'⚡', title:'Shunt Strap Systems',    desc:'Stainless steel shunt straps maintain continuous electrical connection between roof rim and tank shell during all roof positions.' },
+          { icon:'🔗', title:'Bypass Conductors',     desc:'Heavy-gauge cables provide redundant grounding paths, ensuring fault tolerance against shunt damage or wear.' },
+          { icon:'📡', title:'Air Terminal Assemblies', desc:'Engineered lightning rods placed strategically on tank perimeters to attract and safely conduct strikes.' },
+          { icon:'🎯', title:'Bonding Cables',        desc:'Insulated, weather-resistant bonding cables for connection between tank shell and external earth electrodes.' },
+          { icon:'⚙',  title:'Earth Electrode Network', desc:'Buried copper conductor networks providing low-impedance paths to earth potential.' },
+          { icon:'📋', title:'Inspection & Testing',  desc:'Annual continuity testing, resistance measurements, and full system documentation for compliance audits.' }
+        ]
+      }),
+      _seedBlock('cta-box', {
+        heading: 'Audit Your Lightning Protection',
+        body: 'Our engineers can survey your existing installation, identify API 545 compliance gaps, and recommend remedial works.',
+        btn_primary_label: 'Request Audit →',
+        btn_primary_target: 'contact',
+        btn_outline_label: '',
+        btn_outline_url: ''
+      }),
+      _seedBlock('footer')
+    ]; },
+
+    // ─── BLOG INDEX ───────────────────────────────────────────────────
+    'blog': function(){ return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', {
+        eyebrow: 'Insights',
+        title1: 'Technical',
+        title2: 'Insights',
+        desc: 'Articles, case studies, and technical bulletins on floating roof tank emissions, sealing technology, regulatory compliance, and best practice.',
+        breadcrumb: [
+          { label:'Home', slug:'home' },
+          { label:'Blog', slug:'' }
+        ]
+      }),
+      _seedBlock('blog-grid', {
+        eyebrow: 'Latest Articles',
+        title: 'From the Blog',
+        max_posts: 9,
+        filter_tag: ''
+      }),
+      _seedBlock('cta-box', {
+        heading: 'Subscribe for Updates',
+        body: 'Get notified when we publish new technical articles, regulatory updates, and case studies.',
+        btn_primary_label: 'Contact Us →',
+        btn_primary_target: 'contact',
+        btn_outline_label: '',
+        btn_outline_url: ''
+      }),
+      _seedBlock('footer')
+    ]; },
+
+    // ─── CONTACT ──────────────────────────────────────────────────────
+    'contact': function(){ return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', {
+        eyebrow: 'Get in Touch',
+        title1: 'Contact',
+        title2: 'Us',
+        desc: 'Reach our engineering team directly for technical enquiries, quotations, and on-site assessments.',
+        breadcrumb: [
+          { label:'Home', slug:'home' },
+          { label:'Contact', slug:'' }
+        ]
+      }),
+      _seedBlock('side-by-side', {
+        ratio: 'equal',
+        gap: 'wide',
+        align: 'top',
+        col1_type: 'text',
+        col1_eyebrow: 'Talk to Us',
+        col1_heading: 'Engineering Enquiries',
+        col1_body: 'For technical specifications, quotations, on-site surveys, and emissions calculations:\n\nemail: enquiries@petrodek.com\nphone: +91 (your number here)\n\nWe respond to enquiries within 1 working day.',
+        col2_type: 'text',
+        col2_eyebrow: 'Visit Us',
+        col2_heading: 'Office Address',
+        col2_body: 'PETRODEK SYSTEMS\nan ESRAI GROUP Enterprise\n\n[Your office address line 1]\n[Your office address line 2]\n[City, State, PIN]\n\nIndia',
+        bg_preset: 'soft'
+      }),
+      _seedBlock('cta-box', {
+        heading: 'Looking for Spare Parts?',
+        body: 'Our spare parts portal — astspares.com — handles enquiries for replacement seal components, fittings, and consumables.',
+        btn_primary_label: 'Visit AST Spares →',
+        btn_primary_target: '',
+        btn_outline_label: '',
+        btn_outline_url: ''
+      }),
+      _seedBlock('footer')
+    ]; },
+
+    // ─── ABOUT ESRAI GROUP ─────────────────────────────────────────────
+    'about': function(){ return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', {
+        eyebrow: 'About',
+        title1: 'ESRAI',
+        title2: 'GROUP',
+        desc: 'Decades of specialised engineering expertise serving India\'s petroleum refining and petrochemical industry. Petrodek Systems is the floating-roof tank emission control arm of the ESRAI GROUP.',
+        breadcrumb: [
+          { label:'Home', slug:'home' },
+          { label:'ESRAI Group', slug:'' }
+        ]
+      }),
+      _seedBlock('image-text', {
+        eyebrow: 'Our Story',
+        title: 'Engineering at the Heart of Industry',
+        body: 'The ESRAI Group is a multi-disciplinary engineering enterprise serving India\'s heavy industries. Petrodek Systems — our floating roof tank specialist — combines deep petroleum sector expertise with rigorous quality standards and hands-on installation experience to deliver best-in-class emission control solutions.',
+        image_side: 'right',
+        image_url: ''
+      }),
+      _seedBlock('stats-strip', {
+        background: 'light',
+        items: [
+          { num:'25+',  label:'Years in Industry' },
+          { num:'200+', label:'Tank Installations' },
+          { num:'5+',   label:'Seal Product Types' },
+          { num:'100%', label:'API Compliance' }
+        ]
+      }),
+      _seedBlock('two-column', {
+        eyebrow: 'What We Stand For',
+        title: 'Our Values',
+        col1_heading: 'Quality & Compliance',
+        col1_body: 'Every product we supply is engineered, fabricated, and tested to international petroleum industry standards. We provide full material traceability, weld inspection records, and compliance documentation with every order.',
+        col2_heading: 'Service & Support',
+        col2_body: 'Our engineers stay engaged through installation, commissioning, and the operational life of every system. From technical drawings through to on-site supervision and routine maintenance, we partner with you for the long term.',
+        bg_preset: 'soft'
+      }),
+      _seedBlock('cta-box', {
+        heading: 'Work With Us',
+        body: 'Whether you need a single rim seal replacement or a multi-tank turnkey emission control programme, our team is ready to engage.',
+        btn_primary_label: 'Get in Touch →',
+        btn_primary_target: 'contact',
+        btn_outline_label: '',
+        btn_outline_url: ''
+      }),
+      _seedBlock('footer')
+    ]; }
+
+  };
+  return fns[slug] ? fns[slug]() : null;
+}
+
+// Helper for the 5 product detail pages — they share the same structure
+// (hero, intro text, specs table, features grid, related products, CTA).
+// Pass in product-specific data and get back a complete block array.
+function _productPageSeed(p){
+  return [
+    _seedBlock('nav'),
+    _seedBlock('hero-page', {
+      eyebrow: p.eyebrow,
+      title1: p.title1,
+      title2: p.title2,
+      desc: p.hero_desc,
+      breadcrumb: [
+        { label:'Home', slug:'home' },
+        { label:'Products', slug:'products' },
+        { label:p.crumb_parent_label, slug:p.crumb_parent },
+        { label:p.crumb_label, slug:'' }
+      ]
+    }),
+    _seedBlock('image-text', {
+      eyebrow: 'Product Detail',
+      title: p.product_title,
+      body: p.intro_body,
+      image_side: 'right',
+      image_url: ''
+    }),
+    _seedBlock('specs', {
+      label: 'Technical Data',
+      title: 'Specifications',
+      sub: 'All specifications are standard values. Custom configurations available based on tank dimensions, product stored, and operating conditions.',
+      badges: ['API 650', 'API MPMS 19.2', 'API 545', 'IS 10987'],
+      rows: p.specs_rows
+    }),
+    _seedBlock('features-grid', {
+      columns: 3,
+      bg_preset: 'soft',
+      items: p.features
+    }),
+    _seedBlock('cta-box', {
+      heading: 'Request a Technical Quotation',
+      body: 'Provide your tank dimensions, product stored, and operating conditions — our engineers will recommend the optimal configuration and provide a detailed quotation.',
+      btn_primary_label: 'Contact Our Engineers →',
+      btn_primary_target: 'contact',
+      btn_outline_label: 'Calculate Emissions',
+      btn_outline_url: 'http://www.tankprotocol.com'
+    }),
+    _seedBlock('footer')
+  ];
+}
 
 // Block type registry. Each entry describes a block type: its label,
 // icon, default data (used when newly added), a render(data) → HTML
@@ -4219,8 +4843,14 @@ function beLoadPage(slug){
   }
   var existing = beFindPage(slug);
   if (!existing){
-    // Seed rim-seals with a minimal hero block so admin has something to see
-    _beDraft = [ beCreateBlock('hero-page') ];
+    // No saved page — seed from _PAGE_SEEDS if available, else fall back
+    // to a minimal hero-only stub.
+    var seed = (typeof _PAGE_SEEDS === 'function') ? _PAGE_SEEDS(slug) : null;
+    if (Array.isArray(seed) && seed.length){
+      _beDraft = seed;
+    } else {
+      _beDraft = [ beCreateBlock('hero-page') ];
+    }
   } else {
     _beDraft = JSON.parse(JSON.stringify(existing.blocks || []));
   }
@@ -6595,25 +7225,40 @@ window.showPage=function(id,push){
   // Block-editor override: if a page exists in cmsGet().pages with a non-empty
   // blocks[] array AND it matches this slug AND this slug is on the opt-in
   // allow-list, render from blocks instead of the hardcoded PAGES template.
-  // This keeps all unchanged pages on their old rendering path.
-  var blockPage = null;
+  // If no saved blocks exist for an allow-listed slug but a seed is defined,
+  // render from the seed so visitors see something sensible while admin
+  // hasn't customised the page yet.
+  var blockPageHtml = null;
+  var blockPageTitle = null;
   try {
     if (typeof BLOCK_EDITOR_SLUGS !== 'undefined' && BLOCK_EDITOR_SLUGS.indexOf(id) >= 0) {
       var cms = (typeof cmsGet === 'function') ? cmsGet() : null;
       var pages = (cms && cms.pages) ? cms.pages : [];
+      var found = null;
       for (var i = 0; i < pages.length; i++) {
         if (pages[i] && pages[i].slug === id && Array.isArray(pages[i].blocks) && pages[i].blocks.length) {
-          blockPage = pages[i];
+          found = pages[i];
           break;
+        }
+      }
+      if (found && typeof beRenderPage === 'function'){
+        blockPageHtml  = beRenderPage(found.blocks);
+        blockPageTitle = found.title || id;
+      } else if (typeof _PAGE_SEEDS === 'function' && typeof beRenderPage === 'function'){
+        // No stored page — fall through to seed
+        var seedBlocks = _PAGE_SEEDS(id);
+        if (Array.isArray(seedBlocks) && seedBlocks.length){
+          blockPageHtml  = beRenderPage(seedBlocks);
+          // Fall back to the legacy PAGES title if available, else generate one
+          blockPageTitle = (PAGES[id] && PAGES[id].title) || (id.replace(/-/g,' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); }) + ' — PETRODEK SYSTEMS');
         }
       }
     }
   } catch(e) { console.warn('Block page lookup failed:', e); }
 
-  if (blockPage && typeof beRenderPage === 'function') {
-    document.title = blockPage.title || id;
-    var html = beRenderPage(blockPage.blocks);
-    document.getElementById('app').innerHTML = html;
+  if (blockPageHtml !== null) {
+    document.title = blockPageTitle || id;
+    document.getElementById('app').innerHTML = blockPageHtml;
     window.scrollTo(0,0);
     if(push){try{history.pushState({page:id}, document.title, id==='home'?'./':'#'+id);}catch(e){}}
     afterRender(id);
