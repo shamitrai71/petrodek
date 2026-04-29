@@ -32,7 +32,8 @@ const ALLOWED_SECTIONS = new Set([
   "cta_buttons",
   "links",
   "products",
-  "asset_base"
+  "asset_base",
+  "custom_pages"
 ]);
 
 const HEADERS = {

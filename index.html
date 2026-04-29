@@ -1756,7 +1756,8 @@ function _cmsScheduleServerSave(){
 var LIVE_SECTIONS = [
   'theme', 'hero', 'products_section', 'about_section', 'cta_section',
   'footer_section', 'pages', 'posts', 'blog_posts', 'menus', 'images',
-  'videos', 'widgets', 'cta_buttons', 'links', 'products', 'asset_base'
+  'videos', 'widgets', 'cta_buttons', 'links', 'products', 'asset_base',
+  'custom_pages'
 ];
 // Soft warning threshold — Netlify Functions accept up to ~6MB request
 // bodies. We warn the admin before they hit the hard limit so they can
@@ -2352,7 +2353,7 @@ function adminSectionInit(sec) {
     if(sec==='about-sec') { loadFields(); }
     if(sec==='cta-sec') { loadFields(); }
     if(sec==='footer-sec') { loadFields(); fcRenderColumns(); }
-    if(sec==='pages') { renderPages(); }
+    if(sec==='pages') { pgmgrRender(); }
     if(sec==='blog') { renderBlog(); }
     if(sec==='theme') { loadTheme(); }
     if(sec==='menus') { renderMenuList(); renderMenuTree(); }
@@ -2379,10 +2380,10 @@ function adminSectionInit(sec) {
 //  will continue to use their built-in templates until migrated.
 // ════════════════════════════════════════════════════════════════════
 
-// Pages where admins can use block editing. Gate this carefully —
-// enabling a slug here means the stored blocks[] will OVERRIDE the
-// built-in PAGES[slug].html for site visitors. Pages that haven't
-// been seeded yet will auto-populate from _PAGE_SEEDS on first view.
+// Pages where admins can use block editing. These are the "built-in" slugs —
+// the legacy site shipped with these. Custom pages created via the admin
+// are stored in cmsGet().custom_pages and merged with this list at runtime
+// via _allEditableSlugs() / _isEditableSlug().
 var BLOCK_EDITOR_SLUGS = [
   'home',
   'products',
@@ -2398,6 +2399,66 @@ var BLOCK_EDITOR_SLUGS = [
   'contact',
   'about'
 ];
+
+// Returns the union of built-in slugs and custom-page slugs, with
+// metadata for each. Each entry: { slug, title, builtin (bool), status }.
+// Used by the Pages admin, Page Builder picker, and Menu Builder.
+function _allEditableSlugs(){
+  var out = [];
+  // Built-ins — pull title from PAGES if available, else generate from slug
+  for (var i = 0; i < BLOCK_EDITOR_SLUGS.length; i++){
+    var s = BLOCK_EDITOR_SLUGS[i];
+    var title = (typeof PAGES !== 'undefined' && PAGES[s] && PAGES[s].title)
+      ? PAGES[s].title.replace(/\s*—\s*PETRODEK SYSTEMS\s*$/, '')
+      : s.replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+    out.push({ slug: s, title: title, builtin: true, status: 'published' });
+  }
+  // Custom pages from CMS
+  var d = (typeof cmsGet === 'function') ? cmsGet() : {};
+  var custom = Array.isArray(d.custom_pages) ? d.custom_pages : [];
+  for (var j = 0; j < custom.length; j++){
+    var c = custom[j];
+    if (c && c.slug){
+      out.push({
+        slug: c.slug,
+        title: c.title || c.slug,
+        builtin: false,
+        status: c.status || 'published'
+      });
+    }
+  }
+  return out;
+}
+
+// Returns true if the given slug is editable via the block editor
+// (i.e. either built-in or custom).
+function _isEditableSlug(s){
+  if (!s) return false;
+  if (BLOCK_EDITOR_SLUGS.indexOf(s) >= 0) return true;
+  var d = (typeof cmsGet === 'function') ? cmsGet() : {};
+  var custom = Array.isArray(d.custom_pages) ? d.custom_pages : [];
+  for (var i = 0; i < custom.length; i++){
+    if (custom[i] && custom[i].slug === s) return true;
+  }
+  return false;
+}
+
+// Returns the page title for any editable slug (built-in or custom).
+function _titleForSlug(s){
+  // Custom first
+  var d = (typeof cmsGet === 'function') ? cmsGet() : {};
+  var custom = Array.isArray(d.custom_pages) ? d.custom_pages : [];
+  for (var i = 0; i < custom.length; i++){
+    if (custom[i] && custom[i].slug === s){
+      return (custom[i].title || s) + ' — PETRODEK SYSTEMS';
+    }
+  }
+  // Then built-in
+  if (typeof PAGES !== 'undefined' && PAGES[s] && PAGES[s].title) return PAGES[s].title;
+  // Generated fallback
+  return s.replace(/-/g, ' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); }) + ' — PETRODEK SYSTEMS';
+}
+
 
 // Helper: produce a fresh block of the given type, deeply merging
 // `overrides` over the type's defaults. Used by _PAGE_SEEDS to keep
@@ -2956,7 +3017,36 @@ function _PAGE_SEEDS(slug){
     ]; }
 
   };
-  return fns[slug] ? fns[slug]() : null;
+  if (fns[slug]) return fns[slug]();
+  // Custom page that's been registered but has no seed — start with a
+  // minimal but coherent layout so visitors don't see a blank page.
+  if (typeof _isEditableSlug === 'function' && _isEditableSlug(slug)){
+    var t = (typeof _titleForSlug === 'function') ? _titleForSlug(slug).replace(/\s*—\s*PETRODEK SYSTEMS\s*$/, '') : slug;
+    return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', {
+        eyebrow: 'New Page',
+        title1: t.split(' ')[0] || t,
+        title2: t.split(' ').slice(1).join(' ') || '',
+        desc: 'Edit this page in Page Builder to customise the content.',
+        breadcrumb: [
+          { label:'Home', slug:'home' },
+          { label: t, slug: '' }
+        ]
+      }),
+      _seedBlock('rich-text', {
+        content: '<p>Welcome to the new page. Replace this content using the Page Builder. You can add images, side-by-side layouts, FAQs, stats strips, and any other block type.</p>'
+      }),
+      _seedBlock('cta-box', {
+        heading: 'Get in Touch',
+        body: 'Reach our engineering team for technical enquiries, quotations, and on-site assessments.',
+        btn_primary_label: 'Contact Us →',
+        btn_primary_target: 'contact'
+      }),
+      _seedBlock('footer')
+    ];
+  }
+  return null;
 }
 
 // Helper for the 5 product detail pages — they share the same structure
@@ -4793,16 +4883,31 @@ function beRenderPage(blocks){
 //  BLOCK EDITOR UI
 // ════════════════════════════════════════════════════════════════════
 function initBlockEditor(){
-  // Populate page dropdown — only BLOCK_EDITOR_SLUGS are editable
+  // Populate page dropdown — built-ins + custom pages, all editable
   var sel = document.getElementById('be-page');
   if (sel){
-    var titles = {
-      'rim-seals': 'Rim Seals'
-    };
-    sel.innerHTML = '<option value="">— select a page —</option>' +
-      BLOCK_EDITOR_SLUGS.map(function(s){
-        return '<option value="' + s + '">' + (titles[s] || s) + '</option>';
-      }).join('');
+    var allPages = (typeof _allEditableSlugs === 'function') ? _allEditableSlugs() : [];
+    var optsBuiltIn = allPages.filter(function(p){ return p.builtin; });
+    var optsCustom  = allPages.filter(function(p){ return !p.builtin; });
+    var html = '<option value="">— select a page —</option>';
+    if (optsBuiltIn.length){
+      html += '<optgroup label="Built-in pages">' +
+        optsBuiltIn.map(function(p){
+          return '<option value="' + p.slug + '">' + beEscape(p.title) + '</option>';
+        }).join('') +
+      '</optgroup>';
+    }
+    if (optsCustom.length){
+      html += '<optgroup label="Custom pages">' +
+        optsCustom.map(function(p){
+          return '<option value="' + p.slug + '">' + beEscape(p.title) + '</option>';
+        }).join('') +
+      '</optgroup>';
+    }
+    // Preserve current value if any
+    var currentValue = sel.value;
+    sel.innerHTML = html;
+    if (currentValue) sel.value = currentValue;
   }
   // Populate the add-a-block library
   var lib = document.getElementById('be-library');
@@ -5748,14 +5853,58 @@ function adminSectionHTML(sec) {
      PAGES
   ══════════════════════════════════════════════════════ */
   if (sec === 'pages') {
-    return '<div style="max-width:860px;">' +
-      W('Pages', 
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' +
-          '<div id="pages-count" style="font-size:.78rem;color:#6677aa;"></div>' +
-          btn('+ New Page','openPageForm(0,0)',true) +
+    return '<div style="max-width:880px;">' +
+      W('Pages',
+        '<div id="pgmgr-info" style="background:#eef9f3;border:1px solid #b7e4c7;border-radius:6px;padding:.65rem .9rem;margin-bottom:1rem;font-size:.78rem;color:#1a6b3a;line-height:1.55;">' +
+          '<strong>How this works:</strong> all pages are now edited in the <strong>Page Builder</strong>. Click <strong>Edit Content</strong> on any page below to open it in the builder. Use <strong>+ New Page</strong> to create custom pages with their own URL.' +
         '</div>' +
-        '<div id="pages-tree"></div>') +
-      '<div id="page-form" style="display:none;margin-top:1rem;">' + W('Edit Page', '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' + '<span id="pf-title" style="font-weight:700;font-size:.9rem;color:#0a1628;">New Page</span>' + '<button onclick="closePageForm()" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:#aabbc8;">✕</button>' + '</div>' + row(fg('Page Title','pf_title','text','e.g. About Us'), fg('Slug / URL','pf_slug','text','e.g. about-us.html')) + row(fg('Status','pf_status','text','Published / Draft'), fg('Template','pf_template','text','Default')) + row(fg('Parent Page (ID)','pf_parent','text','Leave blank for top level'), fg('Date','pf_date','text','2026-01-01')) + '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Featured Image</label><div style="display:flex;gap:.4rem;align-items:center;"><input type="text" id="pf_img" placeholder="URL or pick from gallery" style="flex:1;border:1px solid #dde4ed;border-radius:6px;padding:.5rem .7rem;font-size:.84rem;outline:none;"/><button onclick="openImgLibModal(function(u){var el=document.getElementById(\'pf_img\');if(el)el.value=u;})" style="background:#f0f4f8;border:1px solid #dde;border-radius:6px;padding:.45rem .65rem;font-size:.75rem;cursor:pointer;white-space:nowrap;">&#128247; Gallery</button></div></div>' + '<div style="margin-bottom:.85rem;"><label style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#6677aa;display:block;margin-bottom:.3rem;">Page Content</label><div id="pf_content" contenteditable="true" style="border:1px solid #dde4ed;border-radius:6px;padding:.7rem;min-height:120px;font-size:.85rem;line-height:1.6;">Start writing...</div></div>' + '<input type="hidden" id="pf_img_hidden"/>' , '<button id="pf-save-btn" onclick="savePage()" style="background:#e8a020;color:#0a1628;border:none;border-radius:6px;padding:.45rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;margin-right:.4rem;">💾 Save Page</button>' + '<button onclick="closePageForm()" style="background:#f0f4f8;border:1px solid #dde4ed;border-radius:6px;padding:.45rem .9rem;font-size:.8rem;cursor:pointer;">Cancel</button>' ) + '</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;">' +
+          '<div id="pgmgr-count" style="font-size:.78rem;color:#6677aa;"></div>' +
+          btn('+ New Page','pgmgrOpenNew()',true) +
+        '</div>' +
+        '<div id="pgmgr-list"></div>'
+      ) +
+      // New-page modal
+      '<div class="amodal-bg" id="pgmgr-modal">' +
+        '<div class="amodal" style="position:relative;max-width:520px;">' +
+          '<button class="amodal-close" onclick="closeModal(\'pgmgr-modal\')">&times;</button>' +
+          '<div class="amodal-title">Create a New Page</div>' +
+          '<p style="font-size:.8rem;color:#6677aa;line-height:1.55;margin:.4rem 0 1rem;">A new page gets its own URL and appears in the Page Builder for editing. You can optionally add it to a navigation menu now or later.</p>' +
+          '<div style="margin-bottom:.7rem;">' +
+            '<label style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;letter-spacing:.05em;">Page Title</label>' +
+            '<input id="pgnew-title" placeholder="e.g. Careers" oninput="pgnewSyncSlug()" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.55rem;font-size:.88rem;font-family:inherit;"/>' +
+          '</div>' +
+          '<div style="margin-bottom:.7rem;">' +
+            '<label style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;letter-spacing:.05em;">URL Slug</label>' +
+            '<input id="pgnew-slug" placeholder="careers" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.55rem;font-size:.88rem;font-family:monospace;"/>' +
+            '<div style="font-size:.72rem;color:#8899aa;margin-top:.3rem;">Lowercase letters, digits and hyphens only. Will be the page URL.</div>' +
+          '</div>' +
+          '<div style="margin-bottom:.7rem;">' +
+            '<label style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;letter-spacing:.05em;">Starting Layout</label>' +
+            '<select id="pgnew-template" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.55rem;font-size:.88rem;font-family:inherit;">' +
+              '<option value="basic">Basic — hero + text + CTA + footer</option>' +
+              '<option value="content">Content page — hero + image-text + features + CTA + footer</option>' +
+              '<option value="product">Product page — hero + image-text + specs + features + CTA + footer</option>' +
+              '<option value="blank">Blank — just nav and footer (build from scratch)</option>' +
+            '</select>' +
+          '</div>' +
+          '<div style="border-top:1px solid #eef2f7;margin:1rem 0 .8rem;padding-top:.8rem;">' +
+            '<label style="display:flex;align-items:center;gap:.5rem;font-size:.84rem;cursor:pointer;font-weight:600;color:#0a1628;">' +
+              '<input type="checkbox" id="pgnew-addmenu" onchange="pgnewToggleMenuOpts(this.checked)"/> Also add to a navigation menu' +
+            '</label>' +
+            '<div id="pgnew-menuopts" style="display:none;margin-top:.6rem;padding-left:1.5rem;">' +
+              '<label style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;letter-spacing:.05em;">Add to menu</label>' +
+              '<select id="pgnew-menu" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.5rem;font-size:.84rem;margin-bottom:.6rem;font-family:inherit;"></select>' +
+              '<label style="font-size:.7rem;font-weight:700;text-transform:uppercase;color:#6677aa;display:block;margin-bottom:.3rem;letter-spacing:.05em;">Menu label (defaults to page title)</label>' +
+              '<input id="pgnew-menulabel" placeholder="(uses page title)" style="width:100%;box-sizing:border-box;border:1px solid #dde;border-radius:5px;padding:.5rem;font-size:.84rem;font-family:inherit;"/>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:.5rem;margin-top:1.2rem;">' +
+            '<button onclick="pgmgrCreate()" style="background:#e8a020;color:#0a1628;border:none;border-radius:6px;padding:.55rem 1.1rem;font-size:.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Create Page</button>' +
+            '<button onclick="closeModal(\'pgmgr-modal\')" style="background:#f0f4f8;border:1px solid #dde;border-radius:6px;padding:.55rem 1rem;font-size:.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
     '</div>';
   }
 
@@ -6300,9 +6449,366 @@ function fe3(cmd,val){document.getElementById('bf_content').focus();document.exe
 function insLink(){const u=prompt('URL:','https://');if(u)document.execCommand('createLink',false,u);}
 
 
+// ════════════════════════════════════════════════════════════════════
+//  PAGES MANAGER (replaces legacy renderPages)
+// Lists all editable pages (built-in + custom). Each row has Edit Content
+// (→ Page Builder), View, and Delete (custom only). Includes a + New Page
+// modal to create custom pages with optional menu integration.
+// ════════════════════════════════════════════════════════════════════
+
+function pgmgrEsc(s){
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Render the page list. Built-in pages first, then custom.
+function pgmgrRender(){
+  var listEl = document.getElementById('pgmgr-list');
+  var countEl = document.getElementById('pgmgr-count');
+  if (!listEl) return;
+  var all = (typeof _allEditableSlugs === 'function') ? _allEditableSlugs() : [];
+  var builtIns = all.filter(function(p){ return p.builtin; });
+  var customs  = all.filter(function(p){ return !p.builtin; });
+  if (countEl) countEl.textContent = all.length + ' total (' + builtIns.length + ' built-in, ' + customs.length + ' custom)';
+
+  var html = '';
+  function rowHtml(p){
+    var statusBadge = p.status === 'published'
+      ? '<span style="font-size:.66rem;font-weight:700;color:#16a34a;background:rgba(34,197,94,.1);padding:2px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em;">Published</span>'
+      : '<span style="font-size:.66rem;font-weight:700;color:#aa6622;background:rgba(232,160,32,.12);padding:2px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em;">' + pgmgrEsc(p.status) + '</span>';
+    var deleteBtn = p.builtin
+      ? ''
+      : '<button onclick="pgmgrDelete(\'' + pgmgrEsc(p.slug) + '\')" title="Delete custom page" style="background:#fff;border:1px solid #f0c0c0;color:#c0392b;border-radius:4px;padding:.32rem .55rem;font-size:.73rem;cursor:pointer;font-family:inherit;">🗑</button>';
+    return (
+      '<div style="display:flex;align-items:center;gap:.6rem;padding:.65rem .85rem;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:.4rem;background:#fff;">' +
+        '<span style="width:8px;height:8px;border-radius:50%;background:' + (p.status === 'published' ? '#16a34a' : '#e8a020') + ';flex-shrink:0;"></span>' +
+        '<span style="flex:1;font-size:.88rem;font-weight:500;color:var(--text);">' + pgmgrEsc(p.title) + '</span>' +
+        '<code style="font-size:.7rem;color:#6677aa;background:#f3f6fa;padding:2px 7px;border-radius:3px;font-family:Menlo,monospace;">' + pgmgrEsc(p.slug) + '</code>' +
+        statusBadge +
+        '<button onclick="pgmgrEditContent(\'' + pgmgrEsc(p.slug) + '\')" style="background:#e8a020;color:#0a1628;border:none;border-radius:4px;padding:.34rem .7rem;font-size:.73rem;font-weight:700;cursor:pointer;font-family:inherit;">✏ Edit Content</button>' +
+        '<button onclick="pgmgrView(\'' + pgmgrEsc(p.slug) + '\')" style="background:#fff;border:1px solid #dde;border-radius:4px;padding:.32rem .65rem;font-size:.73rem;cursor:pointer;font-family:inherit;">👁 View</button>' +
+        deleteBtn +
+      '</div>'
+    );
+  }
+
+  if (builtIns.length){
+    html += '<div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6677aa;margin:.4rem 0 .6rem;">Built-in Site Pages</div>';
+    html += builtIns.map(rowHtml).join('');
+  }
+  if (customs.length){
+    html += '<div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#6677aa;margin:1.2rem 0 .6rem;">Custom Pages</div>';
+    html += customs.map(rowHtml).join('');
+  } else {
+    html += '<div style="margin-top:1.2rem;text-align:center;padding:1.4rem;color:#aabbc8;font-size:.82rem;border:1px dashed #dde4ed;border-radius:8px;background:#f8fafc;">No custom pages yet. Click <strong>+ New Page</strong> above to create one.</div>';
+  }
+  listEl.innerHTML = html;
+}
+
+// Open the editor for a page in the Page Builder.
+function pgmgrEditContent(slug){
+  // Switch admin to Page Builder section, then load the page
+  if (typeof adminGo === 'function') adminGo('pagebuilder');
+  // Wait a tick for the DOM to render, then load the slug
+  setTimeout(function(){
+    var sel = document.getElementById('be-page');
+    if (sel){
+      sel.value = slug;
+      if (typeof beLoadPage === 'function') beLoadPage(slug);
+    }
+  }, 80);
+}
+
+// View the page on the public site (closes admin).
+function pgmgrView(slug){
+  if (typeof goSite === 'function') goSite(slug);
+  else if (typeof showPage === 'function') showPage(slug);
+}
+
+// Delete a custom page (built-ins can't be deleted).
+function pgmgrDelete(slug){
+  var d = cmsGet();
+  var custom = Array.isArray(d.custom_pages) ? d.custom_pages : [];
+  var page = null;
+  for (var i = 0; i < custom.length; i++){ if (custom[i].slug === slug){ page = custom[i]; break; } }
+  if (!page){ if (typeof showToast === 'function') showToast('Page not found'); return; }
+
+  // Check if any menus link to this slug — warn but don't block
+  var brokenMenus = pgmgrFindMenuRefs(slug);
+  var msg = 'Delete custom page "' + page.title + '"?\n\n';
+  if (brokenMenus.length){
+    msg += 'WARNING: ' + brokenMenus.length + ' menu item' + (brokenMenus.length === 1 ? '' : 's') + ' link to this page and will become broken:\n';
+    msg += brokenMenus.map(function(m){ return '  • ' + m.menu + ' → ' + m.label; }).join('\n');
+    msg += '\n\n';
+  }
+  msg += 'This cannot be undone. The page\'s saved blocks will also be removed.';
+  if (!confirm(msg)) return;
+
+  // Remove from custom_pages
+  d.custom_pages = custom.filter(function(p){ return p.slug !== slug; });
+  // Also remove the saved blocks from pages[]
+  if (Array.isArray(d.pages)) d.pages = d.pages.filter(function(p){ return p.slug !== slug; });
+  cmsSet(d);
+  pgmgrRender();
+  if (typeof showToast === 'function') showToast('Page deleted');
+}
+
+// Find all menu items that link to a given slug. Returns
+// [{ menu: 'menu name', label: 'item label' }, ...]
+function pgmgrFindMenuRefs(slug){
+  var refs = [];
+  var d = cmsGet();
+  var menus = Array.isArray(d.menus) ? d.menus : [];
+  function walk(items, menuName){
+    if (!Array.isArray(items)) return;
+    items.forEach(function(it){
+      if (!it) return;
+      // Match if URL starts with slug, slug.html, /slug, etc.
+      var u = String(it.url || '').replace(/^\//, '').replace(/\.html?$/i, '');
+      if (u === slug) refs.push({ menu: menuName, label: it.label || '(unlabelled)' });
+      if (Array.isArray(it.children)) walk(it.children, menuName);
+    });
+  }
+  menus.forEach(function(m){ walk(m.items, m.name || 'Menu'); });
+  return refs;
+}
+
+// ── New-page modal helpers ──
+
+function pgmgrOpenNew(){
+  // Reset form fields
+  var t = document.getElementById('pgnew-title');
+  var s = document.getElementById('pgnew-slug');
+  var tpl = document.getElementById('pgnew-template');
+  var addmenu = document.getElementById('pgnew-addmenu');
+  var menuopts = document.getElementById('pgnew-menuopts');
+  var menulabel = document.getElementById('pgnew-menulabel');
+  if (t) t.value = '';
+  if (s) s.value = '';
+  if (tpl) tpl.value = 'basic';
+  if (addmenu) addmenu.checked = false;
+  if (menuopts) menuopts.style.display = 'none';
+  if (menulabel) menulabel.value = '';
+  // Populate menu dropdown
+  var menuSel = document.getElementById('pgnew-menu');
+  if (menuSel){
+    var menus = (cmsGet().menus) || [];
+    if (menus.length){
+      menuSel.innerHTML = menus.map(function(m){
+        return '<option value="' + m.id + '">' + pgmgrEsc(m.name || ('Menu #' + m.id)) + '</option>';
+      }).join('');
+    } else {
+      menuSel.innerHTML = '<option value="">(no menus exist yet — create one in Menu Builder first)</option>';
+    }
+  }
+  if (typeof openModal === 'function') openModal('pgmgr-modal');
+  else { var bg = document.getElementById('pgmgr-modal'); if (bg) bg.style.display = 'flex'; }
+  setTimeout(function(){ if (t) t.focus(); }, 50);
+}
+
+// Auto-derive slug from title as user types
+function pgnewSyncSlug(){
+  var t = document.getElementById('pgnew-title');
+  var s = document.getElementById('pgnew-slug');
+  if (!t || !s) return;
+  // Only auto-update if slug is empty or matches a previous derivation
+  // Simple heuristic: if slug field hasn't been manually edited, sync it
+  if (s.dataset.manual === '1') return;
+  s.value = String(t.value).toLowerCase()
+    .replace(/['\u2018\u2019]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+function pgnewToggleMenuOpts(checked){
+  var el = document.getElementById('pgnew-menuopts');
+  if (el) el.style.display = checked ? 'block' : 'none';
+}
+
+// Validate and create the new page
+function pgmgrCreate(){
+  var titleEl = document.getElementById('pgnew-title');
+  var slugEl  = document.getElementById('pgnew-slug');
+  var tplEl   = document.getElementById('pgnew-template');
+  var title = titleEl ? titleEl.value.trim() : '';
+  var slug  = slugEl  ? slugEl.value.trim()  : '';
+  var tpl   = tplEl   ? tplEl.value          : 'basic';
+
+  if (!title){ alert('Please enter a page title.'); return; }
+  if (!slug){ alert('Please enter a URL slug.'); return; }
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)){
+    alert('Slug must contain only lowercase letters, digits, and hyphens, and start with a letter or digit.\n\nExample valid slugs: careers, case-studies, services-2025');
+    return;
+  }
+  if (slug.length > 60){
+    alert('Slug must be 60 characters or fewer.');
+    return;
+  }
+  // Check for slug collision
+  if (typeof _isEditableSlug === 'function' && _isEditableSlug(slug)){
+    alert('A page with the slug "' + slug + '" already exists.\n\nPick a different slug.');
+    return;
+  }
+
+  var d = cmsGet();
+  if (!Array.isArray(d.custom_pages)) d.custom_pages = [];
+  d.custom_pages.push({
+    slug: slug,
+    title: title,
+    status: 'published',
+    created: new Date().toISOString().slice(0, 10)
+  });
+
+  // Build the starter blocks based on template
+  var starter = pgmgrBuildStarter(slug, title, tpl);
+  if (!Array.isArray(d.pages)) d.pages = [];
+  d.pages.push({
+    slug: slug,
+    title: title + ' — PETRODEK SYSTEMS',
+    blocks: starter
+  });
+
+  // Optionally add to menu
+  var addMenu = document.getElementById('pgnew-addmenu');
+  if (addMenu && addMenu.checked){
+    var menuSel = document.getElementById('pgnew-menu');
+    var labelEl = document.getElementById('pgnew-menulabel');
+    var menuId  = menuSel ? parseInt(menuSel.value, 10) : 0;
+    var label   = (labelEl && labelEl.value.trim()) || title;
+    if (menuId && Array.isArray(d.menus)){
+      var targetMenu = d.menus.find(function(m){ return m.id === menuId; });
+      if (targetMenu){
+        if (!Array.isArray(targetMenu.items)) targetMenu.items = [];
+        // Pick a fresh ID that doesn't collide with existing menu items
+        var maxId = 100;
+        function maxIdIn(items){
+          if (!Array.isArray(items)) return;
+          items.forEach(function(it){
+            if (it && it.id && it.id > maxId) maxId = it.id;
+            if (it && it.children) maxIdIn(it.children);
+          });
+        }
+        d.menus.forEach(function(m){ maxIdIn(m.items); });
+        targetMenu.items.push({
+          id: maxId + 1,
+          label: label,
+          type: 'page',
+          url: slug,
+          children: []
+        });
+      }
+    }
+  }
+
+  cmsSet(d);
+  if (typeof closeModal === 'function') closeModal('pgmgr-modal');
+  else { var bg = document.getElementById('pgmgr-modal'); if (bg) bg.style.display = 'none'; }
+  pgmgrRender();
+  if (typeof showToast === 'function') showToast('Page "' + title + '" created');
+  // Open it in the page builder so admin can start customising
+  setTimeout(function(){ pgmgrEditContent(slug); }, 200);
+}
+
+// Build a starter block array for new pages based on template choice.
+function pgmgrBuildStarter(slug, title, tpl){
+  // Split title into two lines for the hero. If single word, second line empty.
+  var words = title.split(/\s+/);
+  var t1 = words[0] || title;
+  var t2 = words.slice(1).join(' ') || '';
+  var heroOverrides = {
+    eyebrow: 'New Page',
+    title1: t1,
+    title2: t2,
+    desc: 'Edit this hero in the Page Builder to introduce your page.',
+    breadcrumb: [
+      { label:'Home', slug:'home' },
+      { label: title, slug: '' }
+    ]
+  };
+  var ctaOverrides = {
+    heading: 'Get in Touch',
+    body: 'Reach our engineering team for technical enquiries, quotations, and on-site assessments.',
+    btn_primary_label: 'Contact Us →',
+    btn_primary_target: 'contact'
+  };
+
+  if (tpl === 'blank'){
+    return [ _seedBlock('nav'), _seedBlock('footer') ];
+  }
+  if (tpl === 'product'){
+    return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', heroOverrides),
+      _seedBlock('image-text', {
+        eyebrow: 'Product Detail',
+        title: title,
+        body: 'Replace this with a description of the product. The image goes on the right.',
+        image_side: 'right'
+      }),
+      _seedBlock('specs', {
+        label: 'Technical Data',
+        title: 'Specifications',
+        sub: 'Replace these placeholder specs with your product\'s actual specifications.',
+        rows: [
+          { param: 'Parameter', value: 'Value' },
+          { param: 'Material', value: 'TBD' },
+          { param: 'Standards', value: 'API XXX' }
+        ]
+      }),
+      _seedBlock('features-grid', {
+        bg_preset: 'soft',
+        items: [
+          { icon: '✓', title: 'Feature One', desc: 'Describe the first key feature here.' },
+          { icon: '✓', title: 'Feature Two', desc: 'Describe the second key feature here.' },
+          { icon: '✓', title: 'Feature Three', desc: 'Describe the third key feature here.' }
+        ]
+      }),
+      _seedBlock('cta-box', ctaOverrides),
+      _seedBlock('footer')
+    ];
+  }
+  if (tpl === 'content'){
+    return [
+      _seedBlock('nav'),
+      _seedBlock('hero-page', heroOverrides),
+      _seedBlock('image-text', {
+        eyebrow: '',
+        title: 'Section heading',
+        body: 'Open the Page Builder and replace this with your real content. Add an image URL on the left or right.',
+        image_side: 'left'
+      }),
+      _seedBlock('features-grid', {
+        bg_preset: 'soft',
+        items: [
+          { icon: '✦', title: 'Point One', desc: 'Describe a key point here.' },
+          { icon: '✦', title: 'Point Two', desc: 'Describe a key point here.' },
+          { icon: '✦', title: 'Point Three', desc: 'Describe a key point here.' }
+        ]
+      }),
+      _seedBlock('cta-box', ctaOverrides),
+      _seedBlock('footer')
+    ];
+  }
+  // 'basic' (default)
+  return [
+    _seedBlock('nav'),
+    _seedBlock('hero-page', heroOverrides),
+    _seedBlock('rich-text', {
+      content: '<p>Welcome to your new page. Open the Page Builder and replace this content with your own.</p><p>You can add other blocks below — image+text, features grids, FAQs, side-by-side layouts, and more.</p>'
+    }),
+    _seedBlock('cta-box', ctaOverrides),
+    _seedBlock('footer')
+  ];
+}
+
+
+// Legacy renderPages — kept for safety but no longer called from the
+// admin section dispatch. It targets DOM elements (pages-tree, pages-count)
+// that the new Pages admin doesn't render, so it's a harmless no-op.
 function renderPages(){
   var d=cmsGet();
-  var el=document.getElementById('pages-tree');el.innerHTML='';
+  var el=document.getElementById('pages-tree');if(!el)return;el.innerHTML='';
   var flat=flattenPages(d.pages||[]);
   var bpCount=13;
   document.getElementById('pages-count').textContent=(flat.length+bpCount)+' total ('+bpCount+' built-in, '+flat.length+' custom)';
@@ -6485,7 +6991,34 @@ function renderMenuTree(){
   const menu=(d.menus||[]).find(m=>m.id===activeMenuId);
   const el=document.getElementById('menu-tree');el.innerHTML='';
   if(!menu){el.innerHTML='<p style="color:var(--mid);font-size:.8rem;padding:.5rem 0">Select a menu to edit.</p>';return;}
+  // Build a single datalist of all editable page slugs. Used by the URL
+  // input on each menu item to provide autocomplete + valid suggestions.
+  const all = (typeof _allEditableSlugs === 'function') ? _allEditableSlugs() : [];
+  const datalist = document.createElement('datalist');
+  datalist.id = 'menu-pages-datalist';
+  datalist.innerHTML = all.map(function(p){
+    return '<option value="' + p.slug + '">' + (p.title || p.slug) + (p.builtin ? '' : ' (custom)') + '</option>';
+  }).join('');
+  el.appendChild(datalist);
   menu.items.forEach(item=>el.appendChild(renderMenuItem(item,menu)));
+}
+
+// Returns a small ⚠ marker if the URL points to a slug that doesn't
+// exist as an editable page. External URLs (http://, mailto:, #anchor)
+// and empty URLs are NOT flagged. Used in the menu item header to alert
+// admins to broken links.
+function menuUrlBrokenIndicator(url){
+  if (!url) return '';
+  url = String(url).trim();
+  if (!url) return '';
+  // External URLs and anchors are always considered valid here
+  if (/^(https?:|mailto:|tel:)/i.test(url)) return '';
+  if (url.charAt(0) === '#') return '';
+  // Treat as internal slug
+  var slug = url.replace(/^\//, '').replace(/\.html?$/i, '');
+  if (slug === '' || slug === 'index' || slug === 'petrodek') slug = 'home';
+  if (typeof _isEditableSlug === 'function' && _isEditableSlug(slug)) return '';
+  return ' <span title="This URL doesn\'t match any existing page" style="color:#c0392b;font-size:.78rem;font-weight:700;cursor:help;">⚠ broken</span>';
 }
 
 function renderMenuItem(item,menu){
@@ -6510,7 +7043,11 @@ function renderMenuItem(item,menu){
     <div class="mi-edit" id="mie-${item.id}">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;padding:.55rem 0">
         <div class="f"><label>Label</label><input type="text" value="${item.label}" onchange="updateMiLabel(${item.id},${menu.id},this.value)"/></div>
-        <div class="f"><label>URL</label><input type="text" value="${item.url||''}" onchange="updateMiUrl(${item.id},${menu.id},this.value)"/></div>
+        <div class="f">
+          <label>URL ${menuUrlBrokenIndicator(item.url)}</label>
+          <input type="text" list="menu-pages-datalist" value="${item.url||''}" placeholder="page slug or full URL" onchange="updateMiUrl(${item.id},${menu.id},this.value);if(typeof renderMenuTree==='function')renderMenuTree();" oninput="updateMiUrl(${item.id},${menu.id},this.value)"/>
+          <div style="font-size:.66rem;color:#8899aa;margin-top:.25rem;">Pick a page from the dropdown, or paste any URL (https://…, mailto:, #anchor)</div>
+        </div>
         <div class="f"><label>Open In</label><select onchange="updateMiTarget(${item.id},${menu.id},this.value)"><option value="_self" ${item.target!=='_blank'?'selected':''}>Same Tab</option><option value="_blank" ${item.target==='_blank'?'selected':''}>New Tab</option></select></div>
         <div class="f"><label>CSS Class</label><input type="text" value="${item.cssClass||''}" placeholder="btn-primary"/></div>
       </div>
@@ -7231,7 +7768,7 @@ window.showPage=function(id,push){
   var blockPageHtml = null;
   var blockPageTitle = null;
   try {
-    if (typeof BLOCK_EDITOR_SLUGS !== 'undefined' && BLOCK_EDITOR_SLUGS.indexOf(id) >= 0) {
+    if (typeof _isEditableSlug === 'function' && _isEditableSlug(id)) {
       var cms = (typeof cmsGet === 'function') ? cmsGet() : null;
       var pages = (cms && cms.pages) ? cms.pages : [];
       var found = null;
@@ -7243,14 +7780,13 @@ window.showPage=function(id,push){
       }
       if (found && typeof beRenderPage === 'function'){
         blockPageHtml  = beRenderPage(found.blocks);
-        blockPageTitle = found.title || id;
+        blockPageTitle = found.title || _titleForSlug(id);
       } else if (typeof _PAGE_SEEDS === 'function' && typeof beRenderPage === 'function'){
-        // No stored page — fall through to seed
+        // No stored page — fall through to seed (built-in) or starter (custom)
         var seedBlocks = _PAGE_SEEDS(id);
         if (Array.isArray(seedBlocks) && seedBlocks.length){
           blockPageHtml  = beRenderPage(seedBlocks);
-          // Fall back to the legacy PAGES title if available, else generate one
-          blockPageTitle = (PAGES[id] && PAGES[id].title) || (id.replace(/-/g,' ').replace(/\b\w/g, function(c){ return c.toUpperCase(); }) + ' — PETRODEK SYSTEMS');
+          blockPageTitle = _titleForSlug(id);
         }
       }
     }
