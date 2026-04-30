@@ -285,6 +285,10 @@ footer{background:#060f1c;padding:50px 5% 28px;border-top:2px solid rgba(232,160
 .footer-logo{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.65rem;
   color:var(--white);letter-spacing:.1em;white-space:nowrap;margin-bottom:.8rem}
 .footer-logo span{color:var(--accent)}
+/* When the footer-logo wraps a brand-mark anchor, neutralise the wrapper's
+   own font styles — the brand-mark provides its own. Keeps backward compat
+   for old saved footers that still emit raw text inside .footer-logo. */
+.footer-logo-wrap{display:flex;align-items:center;line-height:1;}
 .footer-tagline{font-size:.78rem;color:#445566;line-height:1.7;max-width:220px}
 .footer-col-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.8rem;
   letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin-bottom:1rem}
@@ -602,8 +606,14 @@ html{scroll-behavior:smooth}
 body{font-family:'Barlow',sans-serif;color:var(--text);background:var(--white)}
 nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(10,22,40,0.96);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between;padding:0 5%;height:68px;border-bottom:2px solid var(--accent)}
 .page-hero{padding:120px 5% 70px;background:linear-gradient(160deg,var(--navy),var(--steel));position:relative;overflow:hidden}
-.page-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(232,160,32,.1),transparent 55%)}
-.page-hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(232,160,32,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(232,160,32,.04) 1px,transparent 1px);background-size:60px 60px;animation:gm 22s linear infinite}
+.page-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(232,160,32,.1),transparent 55%);z-index:0;pointer-events:none}
+/* When a hero has a background video, the video sits at z-index:0 and a
+   colour overlay sits at z-index:1. Push the radial-gradient glow above the
+   video but below the overlay so it tints the video subtly. */
+.page-hero:has(.ph-video)::before{z-index:1;mix-blend-mode:overlay}
+.page-hero:has(.ph-video){background:#000}
+.page-hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(232,160,32,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(232,160,32,.04) 1px,transparent 1px);background-size:60px 60px;animation:gm 22s linear infinite;z-index:0;pointer-events:none}
+.page-hero:has(.ph-video) .page-hero-grid{z-index:1;opacity:.4}
 @keyframes gm{to{transform:translateY(60px)}}
 .page-hero-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto}
 .page-hero-label{font-family:'Barlow Condensed',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:var(--accent);margin-bottom:.7rem}
@@ -688,7 +698,7 @@ footer{background:#060f1c;padding:50px 5% 28px;border-top:2px solid rgba(232,160
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--navy:#0a1628;--steel:#1c2e4a;--accent:#e8a020;--light:#f4f6f9;--mid:#8899aa;--white:#fff;--text:#2c3e50;--sw:268px;--ok:#27ae60;--bad:#e74c3c;--warn:#f39c12;--info:#3498db}
-html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--light);color:var(--text)}
+html,body{height:100%;font-family:'Barlow',sans-serif;background:var(--light);color:var(--text);overflow-x:hidden;max-width:100%}
 /* ── LOGIN ── */
 #lp{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 20% 50%,rgba(232,160,32,.1),transparent 55%),radial-gradient(ellipse at 80% 20%,rgba(192,57,43,.08),transparent 50%),linear-gradient(160deg,#0a1628,#1c2e4a 60%,#0d1f35);position:relative;overflow:hidden}
 .lgrid{position:absolute;inset:0;background-image:linear-gradient(rgba(232,160,32,.05)1px,transparent 1px),linear-gradient(90deg,rgba(232,160,32,.05)1px,transparent 1px);background-size:60px 60px;animation:gm 25s linear infinite}
@@ -1488,6 +1498,27 @@ nav.kebab-nav .logo{
 }
 nav.kebab-nav .logo span{color:var(--accent);}
 
+/* Brand mark — shared between header and footer. Renders inside the
+   existing .logo (header) and .footer-logo (footer) wrappers, but uses
+   its own classes so we can target them precisely. */
+.brand-mark{
+  display:inline-flex;align-items:center;gap:.55rem;
+  text-decoration:none;color:inherit;
+}
+.brand-mark .brand-img{display:block;width:auto;flex-shrink:0;}
+.brand-mark .brand-text{
+  font-family:'Barlow Condensed',sans-serif;font-weight:800;
+  letter-spacing:.06em;line-height:1;white-space:nowrap;
+}
+.brand-mark .brand-accent{color:var(--accent);}
+.brand-mark-header .brand-text{font-size:1.5rem;color:#fff;}
+.brand-mark-footer .brand-text{font-size:1.65rem;color:#fff;}
+/* Mobile cap on header logo image — keeps the 68px nav bar intact */
+@media(max-width:700px){
+  .brand-mark-header .brand-img{max-height:32px!important;}
+  .brand-mark-header .brand-text{font-size:1.2rem;}
+}
+
 /* Kebab button (3 vertical dots) */
 .kebab-btn{
   position:relative;
@@ -1757,7 +1788,7 @@ var LIVE_SECTIONS = [
   'theme', 'hero', 'products_section', 'about_section', 'cta_section',
   'footer_section', 'pages', 'posts', 'blog_posts', 'menus', 'images',
   'videos', 'widgets', 'cta_buttons', 'links', 'products', 'asset_base',
-  'custom_pages'
+  'custom_pages', 'brand'
 ];
 // Soft warning threshold — Netlify Functions accept up to ~6MB request
 // bodies. We warn the admin before they hit the hard limit so they can
@@ -2329,7 +2360,8 @@ function adminGo(sec) {
     pages:'Pages', blog:'Blog Articles', theme:'Theme & Colours',
     menus:'Menu Builder', images:'Image Library', videos:'Videos',
     'page-builder':'Page Builder', widgets:'Widgets', links:'Links Manager',
-    'cta-buttons':'CTA Buttons', settings:'Settings'
+    'cta-buttons':'CTA Buttons', settings:'Settings',
+    brand:'Brand & Logo'
   };
   var sep=document.getElementById('adm-breadcrumb-sep');
   var cur=document.getElementById('adm-breadcrumb-cur');
@@ -2356,6 +2388,7 @@ function adminSectionInit(sec) {
     if(sec==='pages') { pgmgrRender(); }
     if(sec==='blog') { renderBlog(); }
     if(sec==='theme') { loadTheme(); }
+    if(sec==='brand') { brandAdminInit(); }
     if(sec==='menus') { renderMenuList(); renderMenuTree(); }
     if(sec==='images') { renderImages(); }
     if(sec==='videos') { renderVideos(); }
@@ -3107,11 +3140,18 @@ var BLOCK_TYPES = {
   'nav': {
     label: 'Site Navigation',
     icon: '☰',
-    desc: 'Logo + kebab dropdown. Reads its menu items from Admin → Menu Builder.',
+    desc: 'Logo + kebab dropdown. Reads its menu items from Admin → Menu Builder. Logo is shared with the footer via Admin → Brand & Logo.',
     defaults: function(){
       return {
         menu_id: 1,             // ID of the menu to render (from cmsGet().menus)
         show_admin_link: true,
+        // New: how the brand mark should render in the header
+        logo_layout: 'image-text',   // 'image-only' | 'text-only' | 'image-text'
+        logo_image_height: 36,        // px, desktop image height (mobile capped at 32)
+        // Legacy fields — kept for backward compat with previously-saved nav
+        // blocks. Once admin opens Brand & Logo and saves, the brand fields
+        // override these. Old blocks that haven't been touched still render
+        // correctly because _brandGet() falls back to PETRO/DEK/SYSTEMS.
         logo_text_main: 'PETRO',
         logo_text_accent: 'DEK',
         logo_text_suffix: ' SYSTEMS'
@@ -3168,13 +3208,42 @@ var BLOCK_TYPES = {
           '</li>'
         : '';
 
+      // Build the brand mark using the shared brand identity. If brand is
+      // not configured yet (no image, no overrides), _brandGet() falls back
+      // to the legacy text values stored in this block's data — preserving
+      // backward compat for old saved nav blocks.
+      // First, seed the brand fallback for this render only if the CMS
+      // brand is empty AND this block has legacy text values. We do this
+      // by temporarily reading from the block's data when brand is absent.
+      var brandMark;
+      var d = (typeof cmsGet === 'function') ? cmsGet() : {};
+      var brandCfg = d && d.brand;
+      if (!brandCfg || !brandCfg.image_url){
+        // No brand image set — text-only fallback. Use this block's legacy
+        // text fields as the source so existing saved navs look identical.
+        var legacyMain   = data.logo_text_main   || 'PETRO';
+        var legacyAccent = data.logo_text_accent || 'DEK';
+        var legacySuffix = (typeof data.logo_text_suffix === 'string') ? data.logo_text_suffix : ' SYSTEMS';
+        // If brand has its own text overrides, prefer those
+        var bm = (brandCfg && brandCfg.text_main)   ? brandCfg.text_main   : legacyMain;
+        var ba = (brandCfg && brandCfg.text_accent) ? brandCfg.text_accent : legacyAccent;
+        var bs = (brandCfg && typeof brandCfg.text_suffix === 'string') ? brandCfg.text_suffix : legacySuffix;
+        brandMark =
+          '<a href="javascript:void(0)" onclick="showPage(\'home\');return false;" class="brand-mark brand-mark-header brand-layout-text-only">' +
+            '<span class="brand-text">' +
+              beEscape(bm) +
+              '<span class="brand-accent">' + beEscape(ba) + '</span>' +
+              beEscape(bs) +
+            '</span>' +
+          '</a>';
+      } else {
+        // Brand image is set — use the full renderer
+        brandMark = _brandRenderMark('header', data.logo_layout || 'image-text', data.logo_image_height || 36);
+      }
+
       return (
         '<nav class="kebab-nav">' +
-          '<a href="javascript:void(0)" onclick="showPage(\'home\');return false;" class="logo">' +
-            beEscape(data.logo_text_main || 'PETRO') +
-            '<span>' + beEscape(data.logo_text_accent || 'DEK') + '</span>' +
-            beEscape(data.logo_text_suffix || ' SYSTEMS') +
-          '</a>' +
+          brandMark +
           '<button class="kebab-btn" type="button" aria-label="Open menu" aria-expanded="false" onclick="(function(b){var p=b.parentNode.querySelector(\'.kebab-panel\');var open=p.classList.toggle(\'open\');b.setAttribute(\'aria-expanded\',open?\'true\':\'false\');})(this);">' +
             '<span></span><span></span><span></span>' +
           '</button>' +
@@ -3200,11 +3269,30 @@ var BLOCK_TYPES = {
           type: 'select',
           options: menuOptions
         }) +
-        beInfoBox('Menu items, links, and submenus are edited in <strong>Admin → Menu Builder</strong>. The kebab dropdown will render the menu you select above. The logo and admin link are this nav block\'s own settings.') +
-        '<div style="display:grid;grid-template-columns:1fr 80px 1fr;gap:.4rem;margin-top:.7rem;">' +
-          beField(idPrefix, 'Logo (main)', 'logo_text_main', data.logo_text_main || 'PETRO') +
-          beField(idPrefix, 'Accent', 'logo_text_accent', data.logo_text_accent || 'DEK') +
-          beField(idPrefix, 'Suffix', 'logo_text_suffix', data.logo_text_suffix || ' SYSTEMS') +
+        beInfoBox('Menu items, links, and submenus are edited in <strong>Admin → Menu Builder</strong>. The logo image and brand text are edited in <strong>Admin → Brand &amp; Logo</strong>.') +
+        '<div style="border-top:1px solid #eef2f7;margin:.8rem 0 .6rem;padding-top:.7rem;">' +
+          '<div style="font-size:.72rem;font-weight:700;color:#6677aa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem;">Logo display in header</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
+            beField(idPrefix, 'Layout mode', 'logo_layout', data.logo_layout || 'image-text', {
+              type:'select',
+              options:[
+                {value:'image-only', label:'🖼  Image only'},
+                {value:'text-only',  label:'🔤  Text only'},
+                {value:'image-text', label:'🖼+🔤  Image + text'}
+              ]
+            }) +
+            beField(idPrefix, 'Image height (px)', 'logo_image_height', String(data.logo_image_height || 36), {
+              type:'select',
+              options:[
+                {value:'24', label:'24px — small'},
+                {value:'32', label:'32px — compact'},
+                {value:'36', label:'36px — default'},
+                {value:'44', label:'44px — large'},
+                {value:'52', label:'52px — extra large'}
+              ]
+            }) +
+          '</div>' +
+          beInfoBox('On screens narrower than 700px, header image is automatically capped at 32px so the nav bar stays the same height.') +
         '</div>' +
         '<label style="display:flex;align-items:center;gap:.5rem;margin-top:.7rem;font-size:.84rem;">' +
           '<input type="checkbox" ' + (data.show_admin_link !== false ? 'checked' : '') + ' ' +
@@ -3217,7 +3305,7 @@ var BLOCK_TYPES = {
   'hero-page': {
     label: 'Page Hero (breadcrumb style)',
     icon: '🎯',
-    desc: 'Dark gradient hero with eyebrow, two-part title, description and breadcrumb.',
+    desc: 'Dark hero with eyebrow, two-part title, description and breadcrumb. Optional Cloudinary background video and custom height.',
     defaults: function(){
       return {
         eyebrow: 'Products › Rim Seals',
@@ -3228,7 +3316,12 @@ var BLOCK_TYPES = {
           { label: 'Home', slug: 'home' },
           { label: 'Products', slug: 'products' },
           { label: 'Rim Seals', slug: '' }
-        ]
+        ],
+        // New fields — all optional, all backward-compat (omitted = current behaviour)
+        video_url: '',          // Cloudinary public ID, full URL, YouTube, Vimeo, or empty
+        height: 'compact',       // compact | standard | tall | fullscreen | custom
+        custom_height: '420px',  // used only when height === 'custom'
+        overlay: 'standard'      // none | light | standard | strong
       };
     },
     render: function(data){
@@ -3240,11 +3333,75 @@ var BLOCK_TYPES = {
         var link = c.slug ? '<a href="javascript:void(0)" onclick="showPage(\'' + beEscape(c.slug) + '\');return false;">' + beEscape(c.label) + '</a>' : beEscape(c.label);
         return link + sep;
       }).join('');
+
+      // Resolve hero height. Backward-compat: if no `height` field, use the
+      // CSS class default (no inline height = original behaviour).
+      var heightStyle = '';
+      if (data.height === 'standard')   heightStyle = 'min-height:520px;';
+      else if (data.height === 'tall')  heightStyle = 'min-height:680px;';
+      else if (data.height === 'fullscreen') heightStyle = 'min-height:100vh;';
+      else if (data.height === 'custom') {
+        var ch = String(data.custom_height || '420px').trim();
+        // Accept px / vh / rem / % values; sanitise to a safe CSS value
+        if (/^\d+(\.\d+)?(px|vh|rem|em|%)?$/.test(ch)){
+          if (/^\d+(\.\d+)?$/.test(ch)) ch += 'px'; // bare number → px
+          heightStyle = 'min-height:' + ch + ';';
+        }
+      } else if (data.height === 'compact') {
+        heightStyle = 'min-height:380px;';
+      }
+      // height === undefined or unrecognised → no inline override (current behaviour)
+
+      // Resolve background video. Empty = no video, gradient stays.
+      var videoHtml = '';
+      var overlayHtml = '';
+      var raw = (data.video_url || '').trim();
+      if (raw){
+        var resolved = _heroResolveVideoUrl(raw);
+        if (resolved.kind === 'mp4'){
+          videoHtml =
+            '<video class="ph-video" autoplay muted loop playsinline preload="metadata" ' +
+                'style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;">' +
+              '<source src="' + beEscape(resolved.url) + '" type="video/mp4"/>' +
+            '</video>';
+        } else if (resolved.kind === 'youtube'){
+          videoHtml =
+            '<iframe class="ph-video" src="' + beEscape(resolved.url) + '" ' +
+                'frameborder="0" allow="autoplay; encrypted-media" allowfullscreen ' +
+                'style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;border:none;pointer-events:none;"></iframe>';
+        } else if (resolved.kind === 'vimeo'){
+          videoHtml =
+            '<iframe class="ph-video" src="' + beEscape(resolved.url) + '" ' +
+                'frameborder="0" allow="autoplay; encrypted-media" allowfullscreen ' +
+                'style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;border:none;pointer-events:none;"></iframe>';
+        }
+        // Overlay strength — keeps text readable over video
+        var overlayOpacity = data.overlay === 'none'    ? '0'
+                          : data.overlay === 'light'   ? '0.35'
+                          : data.overlay === 'strong'  ? '0.78'
+                          : '0.55'; // standard
+        if (overlayOpacity !== '0'){
+          overlayHtml =
+            '<div class="ph-overlay" style="position:absolute;inset:0;z-index:1;' +
+              'background:linear-gradient(135deg, rgba(10,22,40,' + overlayOpacity + '), rgba(28,46,74,' + overlayOpacity + '));' +
+            '"></div>';
+        }
+      }
+
+      // The .ph-inner z-index needs to sit above the video and overlay.
+      // We add an inline z-index:2 to be safe even if the CSS class doesn't
+      // already set one.
+      var heroStyle = heightStyle
+        ? ' style="' + heightStyle + (data.height === 'fullscreen' ? 'display:flex;flex-direction:column;justify-content:center;' : '') + '"'
+        : '';
+
       return (
-        '<div class="page-hero">' +
+        '<div class="page-hero"' + heroStyle + '>' +
+          videoHtml +
+          overlayHtml +
           '<div class="ph-grid"></div>' +
           '<div class="ph-glow"></div>' +
-          '<div class="ph-inner">' +
+          '<div class="ph-inner" style="position:relative;z-index:2;">' +
             '<div class="ph-eyebrow">' + beEscape(data.eyebrow || '') + '</div>' +
             '<h1>' + beEscape(data.title1 || '') + ' <em>' + beEscape(data.title2 || '') + '</em></h1>' +
             '<p class="ph-desc">' + beEscape(data.desc || '') + '</p>' +
@@ -3275,11 +3432,60 @@ var BLOCK_TYPES = {
           '</div>'
         );
       }).join('');
+      // Conditional custom-height field: only visible when height === 'custom'
+      var customHeightHidden = (data.height !== 'custom') ? 'display:none;' : '';
+      var customHeightField =
+        '<div id="' + idPrefix + '-customheight" style="' + customHeightHidden + 'margin-bottom:.6rem;">' +
+          '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.25rem;">Custom height</label>' +
+          '<input type="text" value="' + beEscape(data.custom_height || '420px') + '" placeholder="e.g. 480px or 60vh" oninput="beUpdateBlockField(\'' + idPrefix + '\',\'custom_height\',this.value)" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.5rem;font-size:.85rem;font-family:monospace;"/>' +
+          '<div style="font-size:.7rem;color:#8899aa;margin-top:.25rem;">Accepts px, vh, rem, em, or % (e.g. <code>520px</code>, <code>70vh</code>).</div>' +
+        '</div>';
+
       return (
+        // Existing text fields
         field('Eyebrow text', 'eyebrow', data.eyebrow) +
         field('Title (first part, bold)', 'title1', data.title1) +
         field('Title (second part, italic accent)', 'title2', data.title2) +
         field('Description', 'desc', data.desc, 'textarea') +
+
+        // New: video + height + overlay
+        '<div style="border-top:1px solid #eef2f7;margin:.8rem 0 .6rem;padding-top:.7rem;">' +
+          '<div style="font-size:.72rem;font-weight:700;color:#6677aa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem;">Background video & height</div>' +
+          beField(idPrefix, 'Video URL or Cloudinary public ID', 'video_url', data.video_url, {
+            placeholder:'e.g. petrodek_hero_loop or https://...'
+          }) +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
+            beField(idPrefix, 'Hero height', 'height', data.height || 'compact', {
+              type:'select',
+              options:[
+                {value:'compact',    label:'Compact — 380px (default)'},
+                {value:'standard',   label:'Standard — 520px'},
+                {value:'tall',       label:'Tall — 680px'},
+                {value:'fullscreen', label:'Full screen — 100vh'},
+                {value:'custom',     label:'Custom — pick exact height…'}
+              ]
+            }) +
+            beField(idPrefix, 'Video overlay', 'overlay', data.overlay || 'standard', {
+              type:'select',
+              options:[
+                {value:'none',     label:'None — raw video'},
+                {value:'light',    label:'Light — subtle dim'},
+                {value:'standard', label:'Standard — readable text'},
+                {value:'strong',   label:'Strong — dramatic'}
+              ]
+            }) +
+          '</div>' +
+          customHeightField +
+          beInfoBox(
+            'Leave Video URL blank to use the dark gradient (no video). Accepts:<br>' +
+            '• <strong>Cloudinary public ID</strong>: <code>petrodek_hero_loop</code> — auto-prefixed with <code>res.cloudinary.com/petrodek/video/upload/f_auto,q_auto/</code><br>' +
+            '• <strong>Full Cloudinary URL</strong> or <strong>direct MP4 URL</strong> — used as-is<br>' +
+            '• <strong>YouTube</strong> or <strong>Vimeo</strong> URL — embedded as background<br>' +
+            'Video plays autoplay-muted-loop. Mobile browsers require muted; keep audio off.'
+          ) +
+        '</div>' +
+
+        // Existing breadcrumb editor
         '<div style="margin-top:.4rem;">' +
           '<label style="font-size:.7rem;font-weight:700;color:#6677aa;text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:.35rem;">Breadcrumb trail</label>' +
           crumbRows +
@@ -3621,11 +3827,12 @@ var BLOCK_TYPES = {
       var first = (data.image_side === 'right') ? textCol : imgCol;
       var second = (data.image_side === 'right') ? imgCol : textCol;
       return (
-        '<div style="' + bg.wrapStyle + 'padding:70px 5%;">' +
-          '<div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;">' +
+        '<div style="' + bg.wrapStyle + 'padding:70px 5%;overflow:hidden;">' +
+          '<div class="be-imgtext" style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center;">' +
             first + second +
           '</div>' +
-        '</div>'
+        '</div>' +
+        '<style>@media(max-width:760px){.be-imgtext{grid-template-columns:1fr!important;gap:2rem!important;}}</style>'
       );
     },
     edit: function(data, idPrefix){
@@ -3683,9 +3890,10 @@ var BLOCK_TYPES = {
         );
       }).join('');
       return (
-        '<div style="' + bg.wrapStyle + 'padding:50px 5%;">' +
-          '<div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:1.2rem;">' + items + '</div>' +
-        '</div>'
+        '<div style="' + bg.wrapStyle + 'padding:50px 5%;overflow:hidden;">' +
+          '<div class="be-features-grid" style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(' + cols + ',minmax(0,1fr));gap:1.2rem;">' + items + '</div>' +
+        '</div>' +
+        '<style>@media(max-width:760px){.be-features-grid{grid-template-columns:repeat(1,minmax(0,1fr))!important;}}</style>'
       );
     },
     edit: function(data, idPrefix){
@@ -3755,10 +3963,10 @@ var BLOCK_TYPES = {
         '</div>';
       }
       return (
-        '<div style="' + bg.wrapStyle + 'padding:50px 5%;">' +
+        '<div style="' + bg.wrapStyle + 'padding:50px 5%;overflow:hidden;">' +
           '<div style="max-width:1200px;margin:0 auto;">' +
             head +
-            '<div style="display:grid;grid-template-columns:' + ratio + ';gap:2.5rem;align-items:start;">' +
+            '<div class="be-twocol" style="display:grid;grid-template-columns:' + ratio + ';gap:2.5rem;align-items:start;">' +
               '<div>' +
                 (data.col1_heading ? '<h3 style="font-size:1.2rem;font-weight:700;color:' + titleColor + ';margin:0 0 .8rem;">' + beEscape(data.col1_heading) + '</h3>' : '') +
                 '<div style="font-size:.95rem;line-height:1.75;color:' + bodyColor + ';opacity:' + bodyOpacity + ';">' + beEscape(data.col1_body || '') + '</div>' +
@@ -3769,7 +3977,8 @@ var BLOCK_TYPES = {
               '</div>' +
             '</div>' +
           '</div>' +
-        '</div>'
+        '</div>' +
+        '<style>@media(max-width:760px){.be-twocol{grid-template-columns:1fr!important;gap:2rem!important;}}</style>'
       );
     },
     edit: function(data, idPrefix){
@@ -4033,11 +4242,12 @@ var BLOCK_TYPES = {
         );
       }).join('');
       return (
-        '<div style="' + bg + 'padding:50px 5%;">' +
-          '<div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:1px;background:rgba(255,255,255,.08);">' +
+        '<div style="' + bg + 'padding:50px 5%;overflow:hidden;">' +
+          '<div class="be-stats-strip" style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(' + cols + ',minmax(0,1fr));gap:1px;background:rgba(255,255,255,.08);">' +
             itemsHtml +
           '</div>' +
-        '</div>'
+        '</div>' +
+        '<style>@media(max-width:700px){.be-stats-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}</style>'
       );
     },
     edit: function(data, idPrefix){
@@ -4408,11 +4618,12 @@ var BLOCK_TYPES = {
       }
 
       return (
-        '<div style="' + bg.wrapStyle + 'padding:60px 5%;">' +
-          '<div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:' + ratio + ';gap:' + gap + ';align-items:' + alignItems + ';">' +
+        '<div style="' + bg.wrapStyle + 'padding:60px 5%;overflow:hidden;">' +
+          '<div class="be-sidebyside" style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:' + ratio + ';gap:' + gap + ';align-items:' + alignItems + ';">' +
             renderColumn(1) + renderColumn(2) +
           '</div>' +
-        '</div>'
+        '</div>' +
+        '<style>@media(max-width:700px){.be-sidebyside{grid-template-columns:1fr!important;gap:2rem!important;}}</style>'
       );
     },
     edit: function(data, idPrefix){
@@ -4492,9 +4703,16 @@ var BLOCK_TYPES = {
   'footer': {
     label: 'Site Footer',
     icon: '⬇',
-    desc: 'Footer with columns of links and a social/copyright row. Columns and links come from Admin → Footer.',
-    defaults: function(){ return {}; },
-    render: function(){
+    desc: 'Footer with columns of links, social row, and the brand logo. Brand logo edited in Admin → Brand & Logo; columns edited in Admin → Footer.',
+    defaults: function(){
+      return {
+        // Per-block: how the brand mark renders in the footer
+        logo_layout: 'image-text',  // 'image-only' | 'text-only' | 'image-text'
+        logo_image_height: 48        // px, footer image height
+      };
+    },
+    render: function(data){
+      data = data || {};
       var d = cmsGet();
       var fs = (d && d.footer_section) || {};
       // Render columns from footer_section.columns if present, otherwise
@@ -4540,11 +4758,31 @@ var BLOCK_TYPES = {
         );
       }).join('');
 
+      // Build the brand mark for the footer placement. Backward compat:
+      // if no brand image is set, render text-only using the same brand
+      // text fields (which themselves fall back to PETRO/DEK/SYSTEMS).
+      var brandCfg = d && d.brand;
+      var brandMark;
+      if (!brandCfg || !brandCfg.image_url){
+        // Text-only fallback. Reads brand text fields if present, else defaults.
+        var brand = _brandGet();
+        brandMark =
+          '<a href="javascript:void(0)" onclick="showPage(\'home\');return false;" class="brand-mark brand-mark-footer brand-layout-text-only">' +
+            '<span class="brand-text">' +
+              beEscape(brand.text_main) +
+              '<span class="brand-accent">' + beEscape(brand.text_accent) + '</span>' +
+              beEscape(brand.text_suffix) +
+            '</span>' +
+          '</a>';
+      } else {
+        brandMark = _brandRenderMark('footer', data.logo_layout || 'image-text', data.logo_image_height || 48);
+      }
+
       return (
         '<footer>' +
           '<div class="footer-main">' +
             '<div>' +
-              '<div class="footer-logo">PETRO<span>DEK</span> SYSTEMS</div>' +
+              '<div class="footer-logo footer-logo-wrap">' + brandMark + '</div>' +
               '<div class="footer-tagline" data-cms="footer_section.tagline">' + beEscape(fs.tagline || fs.tag || '') + '</div>' +
             '</div>' +
             columnsHtml +
@@ -4564,9 +4802,36 @@ var BLOCK_TYPES = {
         '</footer>'
       );
     },
-    edit: function(){
-      return beInfoBox(
-        'Footer columns and links are edited in <strong>Admin → Footer</strong>. The tagline, copyright line, and social URLs live there too. This block just places the footer on the page.'
+    edit: function(data, idPrefix){
+      data = data || {};
+      return (
+        beInfoBox(
+          'Footer columns, tagline, copyright, and social URLs are edited in <strong>Admin → Footer</strong>. The logo image and brand text are edited in <strong>Admin → Brand &amp; Logo</strong> (shared with the header).'
+        ) +
+        '<div style="border-top:1px solid #eef2f7;margin:.8rem 0 .6rem;padding-top:.7rem;">' +
+          '<div style="font-size:.72rem;font-weight:700;color:#6677aa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.5rem;">Logo display in footer</div>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">' +
+            beField(idPrefix, 'Layout mode', 'logo_layout', data.logo_layout || 'image-text', {
+              type:'select',
+              options:[
+                {value:'image-only', label:'🖼  Image only'},
+                {value:'text-only',  label:'🔤  Text only'},
+                {value:'image-text', label:'🖼+🔤  Image + text'}
+              ]
+            }) +
+            beField(idPrefix, 'Image height (px)', 'logo_image_height', String(data.logo_image_height || 48), {
+              type:'select',
+              options:[
+                {value:'32', label:'32px — small'},
+                {value:'40', label:'40px — compact'},
+                {value:'48', label:'48px — default'},
+                {value:'56', label:'56px — large'},
+                {value:'72', label:'72px — extra large'},
+                {value:'96', label:'96px — prominent'}
+              ]
+            }) +
+          '</div>' +
+        '</div>'
       );
     }
   }
@@ -4623,6 +4888,166 @@ function _navResolveUrl(url){
     external: false,
     href: 'javascript:void(0)',
     onclick: "showPage('" + safe + "');return false;"
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  BRAND / LOGO HELPERS
+//
+// Brand identity is stored in cmsGet().brand and shared by both the nav
+// (header) block and the footer block. Per-block fields control how that
+// shared identity renders (layout mode, image height) at each placement.
+//
+// Brand schema (cmsGet().brand):
+//   {
+//     image_url:    string  // Cloudinary public ID, full URL, or empty
+//     text_main:    string  // first part of wordmark, e.g. 'PETRO'
+//     text_accent:  string  // accent-coloured part, e.g. 'DEK'
+//     text_suffix:  string  // suffix after accent, e.g. ' SYSTEMS'
+//   }
+//
+// Per-block fields on nav and footer:
+//   logo_layout: 'image-only' | 'text-only' | 'image-text' (default: 'image-text')
+//   logo_image_height: number in px (header default 36, footer default 48)
+//
+// Backward compat: if cmsGet().brand is missing or has empty fields, fall
+// back to a hardcoded default (PETRO / DEK / SYSTEMS) so old saved pages
+// keep their existing logo without any admin migration step.
+// ════════════════════════════════════════════════════════════════════
+
+// Get the active brand object, with fallbacks. Always returns an object
+// with all four fields populated (image_url may be empty string).
+function _brandGet(){
+  var d = (typeof cmsGet === 'function') ? cmsGet() : {};
+  var b = (d && typeof d.brand === 'object' && d.brand) ? d.brand : {};
+  return {
+    image_url:   typeof b.image_url   === 'string' ? b.image_url   : '',
+    text_main:   typeof b.text_main   === 'string' && b.text_main   ? b.text_main   : 'PETRO',
+    text_accent: typeof b.text_accent === 'string' && b.text_accent ? b.text_accent : 'DEK',
+    text_suffix: typeof b.text_suffix === 'string' && b.text_suffix !== undefined ? b.text_suffix : ' SYSTEMS'
+  };
+}
+
+// Resolve a brand image URL the same way we resolve hero video URLs:
+// pass through full URLs, wrap bare paths/IDs with the Cloudinary image
+// delivery URL. Returns '' for empty input.
+function _brandResolveImageUrl(input){
+  if (!input) return '';
+  var s = String(input).trim();
+  if (!s) return '';
+  // Already a full URL or data: blob — pass through
+  if (/^(https?:|data:|blob:)/i.test(s)) return s;
+  // Site-absolute path (starts with /, but not //) — pass through too,
+  // it's a local asset.
+  if (s.charAt(0) === '/' && s.charAt(1) !== '/') return s;
+  // Treat as Cloudinary public ID. Strip leading slashes and trailing
+  // image extensions (f_auto picks the best format).
+  var id = s.replace(/^\/+/, '').replace(/\.(png|jpg|jpeg|webp|svg|gif|avif)$/i, '');
+  return 'https://res.cloudinary.com/petrodek/image/upload/f_auto,q_auto/' + id;
+}
+
+// Render the brand block (image / text / both) for use inside the nav or
+// footer. `placement` is 'header' or 'footer' — controls which mobile
+// breakpoint and class names get applied.
+//
+// Per-block options:
+//   layout: 'image-only' | 'text-only' | 'image-text' (default 'image-text')
+//   imageHeight: number, in px, desktop image height (default 36 header, 48 footer)
+//   navOnclick: optional, full inline onclick for the wrapping <a>
+//
+// Returns a string of HTML — an <a class="brand-mark"> wrapping the chosen
+// combination of <img> and <span> elements.
+function _brandRenderMark(placement, layout, imageHeight, navOnclick){
+  var brand = _brandGet();
+  var imgUrl = _brandResolveImageUrl(brand.image_url || '');
+  // If layout requests an image but none is set, silently downgrade to
+  // text-only — admins shouldn't get a broken icon when they pick the
+  // wrong mode by accident.
+  var hasImg = !!imgUrl;
+  if (!hasImg && (layout === 'image-only' || layout === 'image-text')){
+    layout = 'text-only';
+  }
+  // Sanitise image height (number, 8..200)
+  var h = parseInt(imageHeight, 10);
+  if (!h || h < 8) h = (placement === 'footer' ? 48 : 36);
+  if (h > 200) h = 200;
+
+  var imgHtml = hasImg
+    ? '<img src="' + beEscape(imgUrl) + '" alt="' + beEscape(brand.text_main + brand.text_accent + brand.text_suffix) + '" ' +
+        'class="brand-img" style="height:' + h + 'px;width:auto;display:block;" loading="lazy"/>'
+    : '';
+  var textHtml =
+    '<span class="brand-text">' +
+      beEscape(brand.text_main) +
+      '<span class="brand-accent">' + beEscape(brand.text_accent) + '</span>' +
+      beEscape(brand.text_suffix) +
+    '</span>';
+
+  var inner;
+  if (layout === 'image-only')      inner = imgHtml;
+  else if (layout === 'text-only')  inner = textHtml;
+  else                              inner = imgHtml + textHtml; // image-text
+
+  // Wrap in an anchor that links to home. Use the same JS-link pattern
+  // the rest of the site uses for internal navigation.
+  var onclickAttr = navOnclick
+    ? ' onclick="' + beEscape(navOnclick) + '"'
+    : ' onclick="showPage(\'home\');return false;"';
+  return (
+    '<a href="javascript:void(0)"' + onclickAttr + ' class="brand-mark brand-mark-' + placement +
+      ' brand-layout-' + layout + '" ' +
+      'data-mobile-cap="' + (placement === 'header' ? '32' : '64') + '">' +
+      inner +
+    '</a>'
+  );
+}
+
+// Resolve a hero-page block's `video_url` field into a renderable embed.
+// Accepts:
+//   - Cloudinary public ID (no scheme, no path) → wraps with cloudinary delivery URL
+//   - Full https:// URL → used as-is, kind detected from domain
+//   - YouTube watch URL or short URL → returns embed URL
+//   - Vimeo URL → returns embed URL
+//   - Empty / null → returns kind:'none'
+//
+// Returns { kind: 'mp4'|'youtube'|'vimeo'|'none', url: string }.
+// Hero block uses kind to pick <video> vs <iframe>.
+function _heroResolveVideoUrl(input){
+  if (!input) return { kind: 'none', url: '' };
+  var s = String(input).trim();
+  if (!s) return { kind: 'none', url: '' };
+
+  // YouTube
+  var ytm = s.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/);
+  if (ytm){
+    var ytId = ytm[1];
+    return {
+      kind: 'youtube',
+      url: 'https://www.youtube.com/embed/' + ytId +
+        '?autoplay=1&mute=1&loop=1&controls=0&modestbranding=1&playsinline=1&playlist=' + ytId
+    };
+  }
+
+  // Vimeo
+  var vm = s.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vm){
+    return {
+      kind: 'vimeo',
+      url: 'https://player.vimeo.com/video/' + vm[1] + '?autoplay=1&muted=1&loop=1&background=1'
+    };
+  }
+
+  // Already a full URL — pass through as MP4 (works for Cloudinary, S3, etc.)
+  if (/^https?:\/\//i.test(s)){
+    return { kind: 'mp4', url: s };
+  }
+
+  // Treat as Cloudinary public ID. Strip any leading slash and any trailing
+  // file extension (Cloudinary's f_auto picks the best codec for the client).
+  var id = s.replace(/^\/+/, '').replace(/\.(mp4|webm|mov|m4v|ogv)$/i, '');
+  return {
+    kind: 'mp4',
+    url: 'https://res.cloudinary.com/petrodek/video/upload/f_auto,q_auto/' + id
   };
 }
 
@@ -5123,6 +5548,14 @@ function beUpdateBlockField(blockId, key, value){
       if (txtWrap) txtWrap.style.display = (value === 'text')  ? '' : 'none';
     } catch(e){ /* non-critical */ }
   }
+  // Special case: hero-page height toggle. When height === 'custom',
+  // reveal the custom-height input field. Otherwise hide it.
+  if (key === 'height'){
+    try {
+      var ch = document.getElementById(blockId + '-customheight');
+      if (ch) ch.style.display = (value === 'custom') ? '' : 'none';
+    } catch(e){ /* non-critical */ }
+  }
   beRenderPreview();
   beSetStatus('Unsaved changes.', 'warn');
 }
@@ -5538,6 +5971,136 @@ function resetTheme() {
   };
 }
 
+// ════════════════════════════════════════════════════════════════════
+//  BRAND & LOGO ADMIN
+// ════════════════════════════════════════════════════════════════════
+var BRAND_DEFAULTS = {
+  image_url: '',
+  text_main: 'PETRO',
+  text_accent: 'DEK',
+  text_suffix: ' SYSTEMS'
+};
+
+// Populate the form fields when the Brand & Logo admin page is opened.
+function brandAdminInit() {
+  var d = cmsGet();
+  var b = (d && d.brand) || {};
+  var imgEl = document.getElementById('brand-image-url');
+  var mainEl = document.getElementById('brand-text-main');
+  var accEl = document.getElementById('brand-text-accent');
+  var sufEl = document.getElementById('brand-text-suffix');
+  if (imgEl)  imgEl.value  = b.image_url || '';
+  if (mainEl) mainEl.value = (typeof b.text_main === 'string' && b.text_main !== '') ? b.text_main : BRAND_DEFAULTS.text_main;
+  if (accEl)  accEl.value  = (typeof b.text_accent === 'string' && b.text_accent !== '') ? b.text_accent : BRAND_DEFAULTS.text_accent;
+  if (sufEl)  sufEl.value  = (typeof b.text_suffix === 'string') ? b.text_suffix : BRAND_DEFAULTS.text_suffix;
+  brandAdminPreview();
+  brandAdminSetStatus('');
+}
+
+// Render the live preview boxes from current form values.
+function brandAdminPreview() {
+  var imgEl = document.getElementById('brand-image-url');
+  var mainEl = document.getElementById('brand-text-main');
+  var accEl = document.getElementById('brand-text-accent');
+  var sufEl = document.getElementById('brand-text-suffix');
+  if (!imgEl) return;
+  var rawUrl = imgEl.value || '';
+  var resolvedUrl = (typeof _brandResolveImageUrl === 'function') ? _brandResolveImageUrl(rawUrl) : '';
+  var brand = {
+    image_url: rawUrl,
+    text_main: mainEl ? (mainEl.value || BRAND_DEFAULTS.text_main) : BRAND_DEFAULTS.text_main,
+    text_accent: accEl ? (accEl.value || BRAND_DEFAULTS.text_accent) : BRAND_DEFAULTS.text_accent,
+    text_suffix: sufEl ? sufEl.value : BRAND_DEFAULTS.text_suffix
+  };
+
+  // Image preview (just the image alone)
+  var imgPrev = document.getElementById('brand-image-preview');
+  if (imgPrev) {
+    if (resolvedUrl) {
+      imgPrev.innerHTML = '<img src="' + brandEsc(resolvedUrl) + '" alt="logo preview" ' +
+        'style="max-width:100%;max-height:100%;object-fit:contain;display:block;" ' +
+        'onerror="this.style.display=\'none\';this.parentNode.innerHTML=\'<span style=\\\'color:#ff8a8a;font-size:.7rem;\\\'>Image failed to load</span>\';"/>';
+    } else {
+      imgPrev.innerHTML = '<span style="color:#5a7a9a;font-size:.7rem;">No image</span>';
+    }
+  }
+
+  // Build header & footer previews using the same brand-mark structure
+  // the public site uses, so what admin sees here matches reality.
+  function buildPreviewMark(placement, height) {
+    var imgHtml = resolvedUrl
+      ? '<img src="' + brandEsc(resolvedUrl) + '" alt="" style="height:' + height + 'px;width:auto;display:block;" onerror="this.style.display=\'none\';"/>'
+      : '';
+    var textHtml =
+      '<span style="font-family:\'Barlow Condensed\',sans-serif;font-weight:800;letter-spacing:.06em;line-height:1;white-space:nowrap;font-size:' +
+        (placement === 'footer' ? '1.65rem' : '1.5rem') + ';color:#fff;">' +
+        brandEsc(brand.text_main) +
+        '<span style="color:#e8a020;">' + brandEsc(brand.text_accent) + '</span>' +
+        brandEsc(brand.text_suffix) +
+      '</span>';
+    var inner = imgHtml ? (imgHtml + textHtml) : textHtml;
+    return '<div style="display:inline-flex;align-items:center;gap:.55rem;">' + inner + '</div>';
+  }
+
+  var hp = document.getElementById('brand-preview-header');
+  var fp = document.getElementById('brand-preview-footer');
+  if (hp) hp.innerHTML = buildPreviewMark('header', 36);
+  if (fp) fp.innerHTML = buildPreviewMark('footer', 48);
+}
+
+function brandEsc(s){
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function brandAdminSetStatus(text, kind){
+  var el = document.getElementById('brand-save-status');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = (kind === 'ok') ? '#1a6b3a' : (kind === 'err') ? '#b94a4a' : (kind === 'warn') ? '#a06a20' : '#8899aa';
+}
+
+function brandAdminSave() {
+  var imgEl = document.getElementById('brand-image-url');
+  var mainEl = document.getElementById('brand-text-main');
+  var accEl = document.getElementById('brand-text-accent');
+  var sufEl = document.getElementById('brand-text-suffix');
+  var brand = {
+    image_url: (imgEl && imgEl.value || '').trim(),
+    text_main: mainEl ? mainEl.value : BRAND_DEFAULTS.text_main,
+    text_accent: accEl ? accEl.value : BRAND_DEFAULTS.text_accent,
+    text_suffix: sufEl ? sufEl.value : BRAND_DEFAULTS.text_suffix
+  };
+  cmsUpd('brand', brand);
+  brandAdminSetStatus('Saving…', 'warn');
+  _cmsOnSaveOk = function(){
+    brandAdminSetStatus('Saved live ✓', 'ok');
+    if (typeof showToast === 'function') showToast('Brand updated');
+    _cmsOnSaveOk = null; _cmsOnSaveError = null;
+  };
+  _cmsOnSaveError = function(err){
+    brandAdminSetStatus('Save failed — retry or reload', 'err');
+    if (typeof showToast === 'function') showToast('Server save failed: ' + (err && err.message ? err.message : err), 'bad');
+    _cmsOnSaveOk = null; _cmsOnSaveError = null;
+  };
+}
+
+function brandAdminReset() {
+  if (!confirm('Reset brand to defaults? This will clear the image and revert text to PETRO / DEK / SYSTEMS.')) return;
+  var imgEl = document.getElementById('brand-image-url');
+  var mainEl = document.getElementById('brand-text-main');
+  var accEl = document.getElementById('brand-text-accent');
+  var sufEl = document.getElementById('brand-text-suffix');
+  if (imgEl)  imgEl.value  = BRAND_DEFAULTS.image_url;
+  if (mainEl) mainEl.value = BRAND_DEFAULTS.text_main;
+  if (accEl)  accEl.value  = BRAND_DEFAULTS.text_accent;
+  if (sufEl)  sufEl.value  = BRAND_DEFAULTS.text_suffix;
+  brandAdminPreview();
+  brandAdminSave();
+}
+
 function setThemeStatus(msg, kind) {
   var el = document.getElementById('theme-status');
   if (!el) return;
@@ -5659,6 +6222,7 @@ function adminSectionHTML(sec) {
       '</div>') +
       W('Appearance','<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;">' +
         tile('🎨','Theme & Colours','theme') +
+        tile('🏷','Brand & Logo','brand') +
       '</div>') +
       W('Media & Build','<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.6rem;">' +
         tile('🖼','Images','images',ic) + tile('▶','Videos','videos',vc) +
@@ -5845,6 +6409,70 @@ function adminSectionHTML(sec) {
           '</div>' +
         '</div>' +
         '<div style="font-size:.72rem;color:#8899aa;margin-top:.5rem;line-height:1.5;">This preview uses the same CSS variables as the live site, so it reflects your edits exactly.</div>'
+      ) +
+    '</div>';
+  }
+
+  /* ══════════════════════════════════════════════════════
+     BRAND & LOGO
+  ══════════════════════════════════════════════════════ */
+  if (sec === 'brand') {
+    return '<div style="max-width:780px;">' +
+      W('Brand Identity',
+        '<div style="background:#eef9f3;border:1px solid #b7e4c7;border-radius:6px;padding:.65rem .9rem;margin-bottom:1rem;font-size:.78rem;color:#1a6b3a;line-height:1.55;">' +
+          '<strong>How this works:</strong> the logo image and text below are shared across the site header and footer. Each placement (header / footer) controls its own size and layout mode separately, in <strong>Page Builder</strong> by editing the Nav block (header) or Footer block.' +
+        '</div>' +
+
+        '<div style="font-size:.72rem;font-weight:700;color:#6677aa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.4rem;">Logo image</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 200px;gap:.7rem;align-items:start;margin-bottom:1.2rem;">' +
+          '<div>' +
+            '<input type="text" id="brand-image-url" placeholder="Cloudinary public ID or full URL" ' +
+              'oninput="brandAdminPreview()" ' +
+              'style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:6px;padding:.55rem .75rem;font-size:.85rem;"/>' +
+            '<div style="font-size:.7rem;color:#6677aa;margin-top:.4rem;line-height:1.55;">' +
+              'Accepts a Cloudinary <strong>public ID</strong> (e.g. <code>petrodek_logo_white</code>), a full URL, or a site-relative path. ' +
+              'Bare IDs are auto-prefixed with <code>https://res.cloudinary.com/petrodek/image/upload/f_auto,q_auto/</code>.' +
+            '</div>' +
+            '<div style="font-size:.7rem;color:#8899aa;margin-top:.4rem;">Leave blank for text-only logos in both header and footer.</div>' +
+          '</div>' +
+          '<div id="brand-image-preview" style="background:#0a1628;border:1px solid #243045;border-radius:6px;height:120px;display:flex;align-items:center;justify-content:center;padding:.6rem;overflow:hidden;">' +
+            '<span style="color:#5a7a9a;font-size:.7rem;">Preview</span>' +
+          '</div>' +
+        '</div>' +
+
+        '<div style="font-size:.72rem;font-weight:700;color:#6677aa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.4rem;">Brand text (used when no image is set, or in Image+Text layout)</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 80px 1fr;gap:.5rem;margin-bottom:1.2rem;">' +
+          '<div>' +
+            '<label style="font-size:.7rem;color:#6677aa;display:block;margin-bottom:.2rem;">Main</label>' +
+            '<input type="text" id="brand-text-main" oninput="brandAdminPreview()" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .65rem;font-size:.85rem;"/>' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:.7rem;color:#6677aa;display:block;margin-bottom:.2rem;">Accent</label>' +
+            '<input type="text" id="brand-text-accent" oninput="brandAdminPreview()" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .65rem;font-size:.85rem;"/>' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:.7rem;color:#6677aa;display:block;margin-bottom:.2rem;">Suffix</label>' +
+            '<input type="text" id="brand-text-suffix" oninput="brandAdminPreview()" style="width:100%;box-sizing:border-box;border:1px solid #dde4ed;border-radius:5px;padding:.45rem .65rem;font-size:.85rem;"/>' +
+          '</div>' +
+        '</div>' +
+
+        '<div style="font-size:.72rem;font-weight:700;color:#6677aa;letter-spacing:.05em;text-transform:uppercase;margin-bottom:.4rem;">Live preview</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-bottom:1rem;">' +
+          '<div>' +
+            '<div style="font-size:.65rem;color:#6677aa;margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.05em;">Header (image+text, 36px)</div>' +
+            '<div id="brand-preview-header" style="background:rgba(10,22,40,0.97);border:1px solid #243045;border-radius:6px;padding:1rem;min-height:68px;display:flex;align-items:center;"></div>' +
+          '</div>' +
+          '<div>' +
+            '<div style="font-size:.65rem;color:#6677aa;margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.05em;">Footer (image+text, 48px)</div>' +
+            '<div id="brand-preview-footer" style="background:#0a1628;border:1px solid #243045;border-radius:6px;padding:1rem;min-height:80px;display:flex;align-items:center;"></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div style="display:flex;gap:.5rem;justify-content:flex-end;align-items:center;margin-top:1rem;border-top:1px solid #e2e8f0;padding-top:1rem;">' +
+          '<span id="brand-save-status" style="flex:1;font-size:.78rem;color:#8899aa;"></span>' +
+          '<button onclick="brandAdminReset()" style="background:#fff;border:1px solid #dde4ed;border-radius:5px;padding:.45rem 1rem;font-size:.82rem;cursor:pointer;color:#6677aa;">Reset</button>' +
+          '<button onclick="brandAdminSave()" style="background:#e8a020;color:#0a1628;border:none;border-radius:5px;padding:.45rem 1.2rem;font-size:.82rem;font-weight:700;cursor:pointer;">Save Brand</button>' +
+        '</div>'
       ) +
     '</div>';
   }

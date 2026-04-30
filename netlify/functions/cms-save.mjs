@@ -33,7 +33,8 @@ const ALLOWED_SECTIONS = new Set([
   "links",
   "products",
   "asset_base",
-  "custom_pages"
+  "custom_pages",
+  "brand"
 ]);
 
 const HEADERS = {
