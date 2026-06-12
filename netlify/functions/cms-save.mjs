@@ -1,43 +1,20 @@
 // Netlify Function: POST /api/cms-save
-// Merges the provided sections into the stored CMS JSON.
-// Only sections in ALLOWED_SECTIONS are accepted — anything else is ignored.
-// Keep ALLOWED_SECTIONS in sync with LIVE_SECTIONS in index.html.
-//
-// No authentication yet. Anyone who can reach this endpoint can overwrite
-// content. Lock this down before giving the site a real public audience:
-//   - Netlify Identity JWT (preferred)
-//   - Shared secret header
-//   - IP allowlist at the redirect layer
-
-import { getStore } from "@netlify/blobs";
+// Merges provided sections into the stored CMS JSON blob.
+// Uses the Netlify Blobs REST API directly (no npm packages needed)
+// so it works with zip-file deploys that skip npm install.
 
 const STORE_NAME = "cms";
 const KEY = "data";
-const MAX_BODY_BYTES = 6_000_000; // ~6MB — Netlify Functions sync invocation limit
+const MAX_BODY_BYTES = 6_000_000;
 
 const ALLOWED_SECTIONS = new Set([
-  "theme",
-  "hero",
-  "products_section",
-  "about_section",
-  "cta_section",
-  "footer_section",
-  "pages",
-  "posts",
-  "blog_posts",
-  "menus",
-  "images",
-  "videos",
-  "widgets",
-  "cta_buttons",
-  "links",
-  "products",
-  "asset_base",
-  "custom_pages",
-  "brand"
+  "theme", "hero", "products_section", "about_section", "cta_section",
+  "footer_section", "pages", "posts", "blog_posts", "menus", "images",
+  "videos", "widgets", "cta_buttons", "links", "products", "asset_base",
+  "custom_pages", "brand"
 ]);
 
-const HEADERS = {
+const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
@@ -45,83 +22,116 @@ const HEADERS = {
   "Content-Type": "application/json"
 };
 
+// Build the Netlify Blobs REST URL for a key.
+// Netlify injects NETLIFY_BLOBS_CONTEXT (base64 JSON) at deploy time.
+// It contains { url, token } for the site's blob store.
+function getBlobsContext() {
+  const raw = process.env.NETLIFY_BLOBS_CONTEXT;
+  if (!raw) return null;
+  try {
+    return JSON.parse(Buffer.from(raw, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function blobUrl(ctx, store, key) {
+  // REST endpoint: {url}/{store}/{key}
+  return `${ctx.url}/${encodeURIComponent(store)}/${encodeURIComponent(key)}`;
+}
+
+async function blobGet(ctx, store, key) {
+  const r = await fetch(blobUrl(ctx, store, key), {
+    headers: { Authorization: `Bearer ${ctx.token}` }
+  });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`blob GET ${r.status}`);
+  return r.text();
+}
+
+async function blobSet(ctx, store, key, value) {
+  const r = await fetch(blobUrl(ctx, store, key), {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${ctx.token}`,
+      "Content-Type": "application/octet-stream"
+    },
+    body: value
+  });
+  if (!r.ok) throw new Error(`blob PUT ${r.status}: ${await r.text()}`);
+}
+
 export default async (request) => {
   if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: HEADERS });
+    return new Response(null, { status: 204, headers: CORS });
   }
   if (request.method !== "POST") {
     return json({ error: "method-not-allowed" }, 405);
   }
 
-  let bodyText;
+  // --- Try @netlify/blobs first (works when npm install ran) ---
+  let useNpmBlobs = false;
+  let store;
   try {
-    bodyText = await request.text();
-  } catch (err) {
-    return json({ error: "body-read-failed", detail: String(err) }, 400);
+    const { getStore } = await import("@netlify/blobs");
+    store = getStore(STORE_NAME);
+    useNpmBlobs = true;
+  } catch {
+    // npm package not available — fall back to REST API
   }
+
+  // --- Parse body ---
+  let bodyText;
+  try { bodyText = await request.text(); }
+  catch (err) { return json({ error: "body-read-failed", detail: String(err) }, 400); }
 
   if (!bodyText || bodyText.length > MAX_BODY_BYTES) {
     return json({ error: "invalid-body-size", bytes: bodyText ? bodyText.length : 0 }, 413);
   }
 
   let incoming;
-  try {
-    incoming = JSON.parse(bodyText);
-  } catch (err) {
-    return json({ error: "invalid-json", detail: String(err) }, 400);
-  }
+  try { incoming = JSON.parse(bodyText); }
+  catch (err) { return json({ error: "invalid-json", detail: String(err) }, 400); }
   if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
     return json({ error: "expected-json-object" }, 400);
   }
 
-  // Filter to the allowed sections
+  // --- Filter to allowed sections ---
   const clean = {};
   for (const key of Object.keys(incoming)) {
-    if (ALLOWED_SECTIONS.has(key)) {
-      clean[key] = incoming[key];
+    if (ALLOWED_SECTIONS.has(key)) clean[key] = incoming[key];
+  }
+  if (Object.keys(clean).length === 0) {
+    return json({ ok: true, accepted: [], note: "no allowed sections; nothing written" }, 200);
+  }
+
+  try {
+    let existing = {};
+    if (useNpmBlobs) {
+      // npm path
+      const prev = await store.get(KEY);
+      if (prev) { try { existing = JSON.parse(prev); } catch {} }
+      const merged = { ...existing, ...clean };
+      await store.set(KEY, JSON.stringify(merged));
+    } else {
+      // REST API fallback
+      const ctx = getBlobsContext();
+      if (!ctx) {
+        return json({ error: "blobs-context-missing", detail: "NETLIFY_BLOBS_CONTEXT env var not found. Make sure this is a Netlify deployment." }, 500);
+      }
+      const prev = await blobGet(ctx, STORE_NAME, KEY);
+      if (prev) { try { existing = JSON.parse(prev); } catch {} }
+      const merged = { ...existing, ...clean };
+      await blobSet(ctx, STORE_NAME, KEY, JSON.stringify(merged));
     }
-  }
-  const acceptedKeys = Object.keys(clean);
-  if (acceptedKeys.length === 0) {
-    return json({
-      ok: true,
-      accepted: [],
-      note: "no allowed sections in body; nothing written"
-    }, 200);
-  }
-
-  let store;
-  try {
-    store = getStore(STORE_NAME);
-  } catch (err) {
-    return json({ error: "blob-store-unavailable", detail: String(err) }, 500);
-  }
-
-  // Merge onto what's already there so we don't clobber other sections
-  let existing = {};
-  try {
-    const prev = await store.get(KEY);
-    if (prev) existing = JSON.parse(prev);
-    if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
-      existing = {};
-    }
-  } catch (err) {
-    // Corrupt stored blob — start fresh rather than propagate the error
-    existing = {};
-  }
-
-  const merged = { ...existing, ...clean };
-
-  try {
-    await store.set(KEY, JSON.stringify(merged));
-    return json({ ok: true, accepted: acceptedKeys }, 200);
+    return json({ ok: true, accepted: Object.keys(clean) }, 200);
   } catch (err) {
     return json({ error: "write-failed", detail: String(err) }, 500);
   }
 };
 
 function json(obj, status) {
-  return new Response(JSON.stringify(obj), { status, headers: HEADERS });
+  return new Response(JSON.stringify(obj), { status, headers: CORS });
 }
 
 export const config = { path: "/api/cms-save" };
